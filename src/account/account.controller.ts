@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { AccountService } from './account.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -8,7 +8,10 @@ export class AccountController {
 
   @UseGuards(JwtAuthGuard)
   @Get()
-  findAll() {
-    return this.accountService.findAll();
+  findAll(
+    @Query('page') page = '1',
+    @Query('limit') limit = '20',
+  ) {
+    return this.accountService.findAll(Number(page), Number(limit));
   }
 }

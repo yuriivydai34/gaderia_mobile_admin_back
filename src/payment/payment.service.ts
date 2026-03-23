@@ -10,8 +10,12 @@ export class PaymentService {
     private readonly paymentRepository: Repository<Payment>,
   ) {}
 
-  findAll(): Promise<Payment[]> {
-    return this.paymentRepository.find();
+  async findAll(page: number, limit: number): Promise<{ data: Payment[]; total: number; page: number; limit: number }> {
+    const [data, total] = await this.paymentRepository.findAndCount({
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return { data, total, page, limit };
   }
 
   async findOne(id: number): Promise<Payment> {

@@ -10,15 +10,18 @@ export class AccountService {
     private readonly accountRepository: Repository<Account>,
   ) {}
 
-  findAll(): Promise<Omit<Account, 'password'>[]> {
-    return this.accountRepository.find({
+  async findAll(page: number, limit: number): Promise<{ data: Omit<Account, 'password'>[]; total: number; page: number; limit: number }> {
+    const [data, total] = await this.accountRepository.findAndCount({
       select: [
         'id', 'full_name', 'email', 'number', 'avatar', 'role',
         'name_company', 'code_company', 'is_email_confirmation',
         'name_bank', 'number_bank', 'region', 'settlement',
         'address', 'type_account_subject', 'createdAt', 'updatedAt',
       ],
+      skip: (page - 1) * limit,
+      take: limit,
     });
+    return { data, total, page, limit };
   }
 
   findByEmail(email: string): Promise<Account | null> {

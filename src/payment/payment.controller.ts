@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { PaymentService } from './payment.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Payment } from './payment.entity';
@@ -9,8 +9,11 @@ export class PaymentController {
   constructor(private readonly paymentService: PaymentService) {}
 
   @Get()
-  findAll(): Promise<Payment[]> {
-    return this.paymentService.findAll();
+  findAll(
+    @Query('page') page = '1',
+    @Query('limit') limit = '20',
+  ) {
+    return this.paymentService.findAll(Number(page), Number(limit));
   }
 
   @Get(':id')
