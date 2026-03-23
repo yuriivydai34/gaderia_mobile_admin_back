@@ -6,6 +6,8 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { AccountModule } from './account/account.module';
 import { Account } from './account/account.entity';
+import { PaymentModule } from './payment/payment.module';
+import { Payment } from './payment/payment.entity';
 
 @Module({
   imports: [
@@ -17,11 +19,12 @@ import { Account } from './account/account.entity';
       username: process.env.DB_USER ?? 'postgres',
       password: process.env.DB_PASSWORD ?? 'postgres',
       database: process.env.DB_NAME ?? 'your_database_name',
-      entities: [Account],
+      entities: [Account, Payment],
       synchronize: false,
     }),
     AuthModule,
     AccountModule,
+    PaymentModule,
   ],
   controllers: [AppController],
   providers: [AppService],
