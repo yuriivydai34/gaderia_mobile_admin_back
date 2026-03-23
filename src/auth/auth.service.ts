@@ -1,32 +1,36 @@
 import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { UsersService } from '../users/users.service';
+import { AccountService } from '../account/account.service';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly usersService: UsersService,
+    private readonly accountService: AccountService,
     private readonly jwtService: JwtService,
   ) {}
 
-  async register(name: string, email: string, password: string) {
-    const existing = await this.usersService.findByEmail(email);
+  private pepperPassword(password: string): string {
+    return password + process.env.PASSWORD_PEPPER;
+  }
+
+  async register(full_name: string, email: string, password: string) {
+    const existing = await this.accountService.findByEmail(email);
     if (existing) {
       throw new ConflictException('Email already in use');
     }
-    const hashed = await bcrypt.hash(password, 10);
-    const user = await this.usersService.create(name, email, hashed);
-    const access_token = this.jwtService.sign({ sub: user.id, email: user.email });
+    const hashed = await bcrypt.hash(this.pepperPassword(password), 10);
+    const account = await this.accountService.create({ full_name, email, password: hashed });
+    const access_token = this.jwtService.sign({ sub: account.id, email: account.email, role: account.role });
     return { access_token };
   }
 
   async login(email: string, password: string) {
-    const user = await this.usersService.findByEmail(email);
-    if (!user || !(await bcrypt.compare(password, user.password))) {
+    const account = await this.accountService.findByEmail(email);
+    if (!account || !account.password || !(await bcrypt.compare(this.pepperPassword(password), account.password))) {
       throw new UnauthorizedException('Invalid credentials');
     }
-    const access_token = this.jwtService.sign({ sub: user.id, email: user.email });
+    const access_token = this.jwtService.sign({ sub: account.id, email: account.email, role: account.role });
     return { access_token };
   }
 }

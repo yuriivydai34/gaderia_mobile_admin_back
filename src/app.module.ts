@@ -1,25 +1,27 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
-import { UsersModule } from './users/users.module';
-import { User } from './users/user.entity';
+import { AccountModule } from './account/account.module';
+import { Account } from './account/account.entity';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRoot({
-      type: 'mysql',
-      host: 'localhost',
-      port: 3306,
-      username: 'appuser',
-      password: 'your_app_password',
-      database: 'your_database_name',
-      entities: [User],
-      synchronize: true,
+      type: 'postgres',
+      host: process.env.DB_HOST ?? 'localhost',
+      port: Number(process.env.DB_PORT) || 5432,
+      username: process.env.DB_USER ?? 'postgres',
+      password: process.env.DB_PASSWORD ?? 'postgres',
+      database: process.env.DB_NAME ?? 'your_database_name',
+      entities: [Account],
+      synchronize: false,
     }),
     AuthModule,
-    UsersModule,
+    AccountModule,
   ],
   controllers: [AppController],
   providers: [AppService],
