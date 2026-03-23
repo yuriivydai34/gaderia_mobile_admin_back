@@ -1,0 +1,31 @@
+version: '3.1'
+
+services:
+  mysqldb:
+    image: mysql:8
+    container_name: mysqldb
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: your_strong_password
+      MYSQL_DATABASE: your_database_name
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: your_app_password
+      MYSQL_DEFAULT_AUTHENTICATION_PLUGIN: mysql_native_password
+    ports:
+      - "3306:3306"
+    volumes:
+      # Persist data even if the container is removed
+      - mysqlDbVolume:/var/lib/mysql
+
+  adminer:
+    image: adminer
+    container_name: adminer
+    restart: always
+    ports:
+      - "8081:8080"
+    depends_on:
+      - mysqldb # Ensures MySQL starts first
+
+volumes:
+  mysqlDbVolume:
+    driver: local
