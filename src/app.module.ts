@@ -8,6 +8,8 @@ import { AccountModule } from './account/account.module';
 import { Account } from './account/account.entity';
 import { PaymentModule } from './payment/payment.module';
 import { Payment } from './payment/payment.entity';
+import { CatalogModule } from './catalog/catalog.module';
+import { Catalog } from './catalog/catalog.entity';
 
 @Module({
   imports: [
@@ -19,12 +21,13 @@ import { Payment } from './payment/payment.entity';
       username: process.env.DB_USER ?? 'postgres',
       password: process.env.DB_PASSWORD ?? 'postgres',
       database: process.env.DB_NAME ?? 'your_database_name',
-      entities: [Account, Payment],
+      entities: [Account, Payment, Catalog],
       synchronize: false,
     }),
     AuthModule,
     AccountModule,
     PaymentModule,
+    CatalogModule,
   ],
   controllers: [AppController],
   providers: [AppService],
