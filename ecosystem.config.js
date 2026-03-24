@@ -1,6 +1,6 @@
 module.exports = {
   apps: [{
-    name: "nextjs-app-orders-front",
+    name: "gaderia_mobile_admin_back",
     script: "./dist/main.js",
     env: {
       NODE_ENV: "production",
