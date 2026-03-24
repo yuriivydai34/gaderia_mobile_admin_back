@@ -19,6 +19,11 @@ export class PaymentController {
     return this.paymentService.findAll(Number(page), Number(limit), sortBy, sortOrder);
   }
 
+  @Get('report')
+  generateReport(): Promise<string> {
+    return this.paymentService.generateReport();
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number): Promise<Payment> {
     return this.paymentService.findOne(id);
