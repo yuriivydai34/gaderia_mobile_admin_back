@@ -20,8 +20,8 @@ export class PaymentController {
   }
 
   @Get('report')
-  generateReport(): Promise<string> {
-    return this.paymentService.generateReport();
+  generateReport(@Query('date') date: string): Promise<string> {
+    return this.paymentService.generateReport(date ?? new Date().toISOString().slice(0, 10));
   }
 
   @Get(':id')
