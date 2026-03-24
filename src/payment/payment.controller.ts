@@ -13,8 +13,10 @@ export class PaymentController {
   findAll(
     @Query('page') page = '1',
     @Query('limit') limit = '20',
+    @Query('sortBy') sortBy = 'createdAt',
+    @Query('sortOrder') sortOrder: 'ASC' | 'DESC' = 'DESC',
   ) {
-    return this.paymentService.findAll(Number(page), Number(limit));
+    return this.paymentService.findAll(Number(page), Number(limit), sortBy, sortOrder);
   }
 
   @Get(':id')
