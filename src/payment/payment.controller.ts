@@ -15,8 +15,9 @@ export class PaymentController {
     @Query('limit') limit = '20',
     @Query('sortBy') sortBy = 'createdAt',
     @Query('sortOrder') sortOrder: 'ASC' | 'DESC' = 'DESC',
+    @Query('status') status?: string,
   ) {
-    return this.paymentService.findAll(Number(page), Number(limit), sortBy, sortOrder);
+    return this.paymentService.findAll(Number(page), Number(limit), sortBy, sortOrder, status);
   }
 
   @Get('report')
