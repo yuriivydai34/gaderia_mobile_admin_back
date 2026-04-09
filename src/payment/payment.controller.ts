@@ -12,7 +12,7 @@ export class PaymentController {
   @Get()
   findAll(
     @Query('page') page = '1',
-    @Query('limit') limit = '20',
+    @Query('limit') limit = '10',
     @Query('sortBy') sortBy = 'createdAt',
     @Query('sortOrder') sortOrder: 'ASC' | 'DESC' = 'DESC',
     @Query('status') status?: string,

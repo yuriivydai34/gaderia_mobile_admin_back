@@ -12,9 +12,11 @@ export class CatalogController {
   @Get()
   findAll(
     @Query('page') page = '1',
-    @Query('limit') limit = '20',
+    @Query('limit') limit = '10',
+    @Query('sortBy') sortBy = 'id',
+    @Query('sortOrder') sortOrder: 'ASC' | 'DESC' = 'ASC',
   ) {
-    return this.catalogService.findAll(Number(page), Number(limit));
+    return this.catalogService.findAll(Number(page), Number(limit), sortBy, sortOrder);
   }
 
   @Get(':id')

@@ -10,10 +10,11 @@ export class CatalogService {
     private readonly catalogRepository: Repository<Catalog>,
   ) {}
 
-  async findAll(page: number, limit: number): Promise<{ data: Catalog[]; total: number; page: number; limit: number }> {
+  async findAll(page: number, limit: number, sortBy = 'id', sortOrder: 'ASC' | 'DESC' = 'ASC'): Promise<{ data: Catalog[]; total: number; page: number; limit: number }> {
     const [data, total] = await this.catalogRepository.findAndCount({
       skip: (page - 1) * limit,
       take: limit,
+      order: { [sortBy]: sortOrder },
     });
     return { data, total, page, limit };
   }
