@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { CatalogService } from './catalog.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
@@ -27,7 +27,7 @@ export class CatalogController {
     return this.catalogService.create(body);
   }
 
-  @Put(':id')
+  @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: Partial<Catalog>,
