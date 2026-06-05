@@ -10,6 +10,8 @@ import { PaymentModule } from './payment/payment.module';
 import { Payment } from './payment/payment.entity';
 import { CatalogModule } from './catalog/catalog.module';
 import { Catalog } from './catalog/catalog.entity';
+import { ShiftModule } from './shift/shift.module';
+import { Shift } from './shift/shift.entity';
 
 @Module({
   imports: [
@@ -21,13 +23,14 @@ import { Catalog } from './catalog/catalog.entity';
       username: process.env.DB_USER ?? 'postgres',
       password: process.env.DB_PASSWORD ?? 'postgres',
       database: process.env.DB_NAME ?? 'your_database_name',
-      entities: [Account, Payment, Catalog],
+      entities: [Account, Payment, Catalog, Shift],
       synchronize: false,
     }),
     AuthModule,
     AccountModule,
     PaymentModule,
     CatalogModule,
+    ShiftModule,
   ],
   controllers: [AppController],
   providers: [AppService],
