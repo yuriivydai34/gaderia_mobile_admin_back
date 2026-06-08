@@ -18,7 +18,7 @@ export class ShiftService {
       method: 'POST',
       headers: {
         'accept': 'application/json',
-        'X-License-Key': shift.licenseKeyCheckBox,
+        'X-License-Key': shift.licenseKeyCheckBox ?? '',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ pin_code: pinCode }),
