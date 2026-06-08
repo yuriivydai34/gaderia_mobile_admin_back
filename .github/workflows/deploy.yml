@@ -26,6 +26,16 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Copy dist to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          source: 'dist/'
+          target: ${{ secrets.APP_PATH }}
+
       - name: Deploy to server
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -35,8 +45,6 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           script: |
             cd ${{ secrets.APP_PATH }}
-            git pull origin main
             npm ci --omit=dev
-            npm run build
             pm2 restart ${{ secrets.PM2_APP_NAME }} || pm2 start dist/main.js --name ${{ secrets.PM2_APP_NAME }}
             pm2 save
