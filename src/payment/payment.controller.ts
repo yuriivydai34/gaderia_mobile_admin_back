@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { PaymentService } from './payment.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
@@ -13,7 +13,7 @@ export class PaymentController {
   findAll(
     @Query('page') page = '1',
     @Query('limit') limit = '10',
-    @Query('sortBy') sortBy = 'createdAt',
+    @Query('sortBy') sortBy = 'updatedAt',
     @Query('sortOrder') sortOrder: 'ASC' | 'DESC' = 'DESC',
     @Query('status') status?: string,
   ) {

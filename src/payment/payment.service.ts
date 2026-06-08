@@ -15,7 +15,7 @@ export class PaymentService {
 
   async findAll(page: number, limit: number, sortBy: string, sortOrder: 'ASC' | 'DESC', status?: string): Promise<{ data: Payment[]; total: number; page: number; limit: number }> {
     const columns = this.paymentRepository.metadata.columns.map(c => c.propertyName);
-    const orderField = columns.includes(sortBy) ? sortBy : 'createdAt';
+    const orderField = columns.includes(sortBy) ? sortBy : 'updatedAt';
     const [data, total] = await this.paymentRepository.findAndCount({
       where: status ? { status } : {},
       skip: (page - 1) * limit,
