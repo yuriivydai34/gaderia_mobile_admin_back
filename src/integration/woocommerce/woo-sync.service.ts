@@ -16,6 +16,8 @@ export type SyncResult = {
   updated: number;
   linkedToExisting: number;
   cursor: string | null;
+  /** Which date field the shop let us filter on. */
+  strategy: 'modified' | 'created';
 };
 
 function rewindOneSecond(iso: string): string {
@@ -55,7 +57,7 @@ export class WooSyncService {
       const since = options.full ? null : await this.getCursor();
       this.logger.log(since ? `syncing orders modified after ${since}` : 'syncing all orders');
 
-      const orders = await this.woo.fetchOrders(since);
+      const { orders, strategy } = await this.woo.fetchOrders(since);
       const contacts = collapse(orders);
 
       let created = 0;
@@ -71,8 +73,12 @@ export class WooSyncService {
 
       // Advance only on success, and only as far as the newest order actually
       // seen - so a run that fails halfway is simply repeated next time.
+      // Must match whatever the shop actually filtered on, or the next run
+      // asks for a window that does not line up.
       const newest = orders
-        .map((o) => o.date_modified_gmt ?? o.date_created_gmt ?? '')
+        .map((o) => (strategy === 'modified'
+          ? o.date_modified_gmt ?? o.date_created_gmt
+          : o.date_created_gmt ?? o.date_modified_gmt) ?? '')
         .filter(Boolean)
         .sort()
         .pop();
@@ -91,6 +97,7 @@ export class WooSyncService {
         updated,
         linkedToExisting,
         cursor: cursor ?? null,
+        strategy,
       };
       this.logger.log(`sync finished: ${JSON.stringify(result)}`);
       return result;
