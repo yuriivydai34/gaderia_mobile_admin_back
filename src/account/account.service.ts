@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, Repository } from 'typeorm';
 import { Account } from './account.entity';
@@ -17,6 +17,17 @@ const EDITABLE_FIELDS = [
   'name_company', 'code_company', 'type_account_subject',
   'name_bank', 'number_bank', 'region', 'settlement', 'address',
 ] as const;
+
+/**
+ * Postgres reports a unique violation as 23505. Catching it is what actually
+ * prevents duplicate accounts: a check-then-insert leaves a window in which two
+ * concurrent registrations both pass the check.
+ */
+export function isDuplicateEmail(error: unknown): boolean {
+  const code = (error as { driverError?: { code?: string }; code?: string })?.driverError?.code
+    ?? (error as { code?: string })?.code;
+  return code === '23505';
+}
 
 @Injectable()
 export class AccountService {
@@ -68,13 +79,22 @@ export class AccountService {
       if (field === 'code_company') {
         const parsed = value === null ? null : Number(value);
         patch[field] = parsed === null || Number.isNaN(parsed) ? null : parsed;
+      } else if (field === 'email') {
+        patch[field] = value === null ? null : String(value).trim().toLowerCase();
       } else {
         patch[field] = value === null ? null : String(value);
       }
     }
 
     if (Object.keys(patch).length > 0) {
-      await this.accountRepository.update(id, patch);
+      try {
+        await this.accountRepository.update(id, patch);
+      } catch (error) {
+        if (isDuplicateEmail(error)) {
+          throw new ConflictException('Email already in use');
+        }
+        throw error;
+      }
     }
 
     const updated = await this.accountRepository.findOne({
@@ -85,8 +105,15 @@ export class AccountService {
     return updated;
   }
 
+  /**
+   * Case-insensitive on purpose: the unique index is on lower(email), so
+   * Ivan@x.com and ivan@x.com are one account and must be found as one.
+   */
   findByEmail(email: string): Promise<Account | null> {
-    return this.accountRepository.findOne({ where: { email } });
+    return this.accountRepository
+      .createQueryBuilder('account')
+      .where('lower(account.email) = lower(:email)', { email: email.trim() })
+      .getOne();
   }
 
   findById(id: number): Promise<Account | null> {
