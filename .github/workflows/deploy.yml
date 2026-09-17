@@ -35,9 +35,15 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
+          # package.json and package-lock.json have to travel as well: the next
+          # step runs `npm ci` on the server, and without them it installs the
+          # dependency set from whatever stale copy is already there. Shipping
+          # dist/ alone once left the app unable to start, because a dependency
+          # added in this commit was never installed.
+          #
           # Comma separated on one line: the block form leaves a trailing blank
           # entry, which drone-scp turns into an empty archive.
-          source: 'dist/,migrations/,scripts/'
+          source: 'dist/,migrations/,scripts/,package.json,package-lock.json'
           target: ${{ secrets.APP_PATH }}
 
       - name: Deploy to server
