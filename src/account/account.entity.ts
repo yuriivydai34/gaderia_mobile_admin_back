@@ -65,15 +65,4 @@ export class Account {
   @Column({ name: 'type_account_subject', type: 'varchar', nullable: true, default: null })
   type_account_subject: string | null;
 
-  /** 'gaderia' for records created here, 'woocommerce' for imported ones. */
-  @Column({ type: 'varchar', default: 'gaderia' })
-  source: string;
-
-  /** Identity in the source system; null for records created in the panel. */
-  @Column({ name: 'external_id', type: 'varchar', nullable: true, default: null })
-  external_id: string | null;
-
-  /** Everything the source system knew that does not fit the flat columns. */
-  @Column({ name: 'source_data', type: 'jsonb', nullable: true, default: null })
-  source_data: object | null;
 }

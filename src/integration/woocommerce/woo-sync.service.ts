@@ -1,10 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Not, Repository } from 'typeorm';
-import { Account } from '../../account/account.entity';
+import { Repository } from 'typeorm';
+import { Customer } from '../../customer/customer.entity';
 import { IntegrationState } from './integration-state.entity';
 import { WooClient } from './woo.client';
-import { ContactCollector, WooContact } from './woo-contact';
+import { ContactCollector, SourceData, WooContact, mergeSourceData } from './woo-contact';
 
 export const WOO_SOURCE = 'woocommerce';
 const CURSOR_KEY = 'woocommerce.orders.modified_after';
@@ -32,8 +32,8 @@ export class WooSyncService {
   private running = false;
 
   constructor(
-    @InjectRepository(Account)
-    private readonly accounts: Repository<Account>,
+    @InjectRepository(Customer)
+    private readonly customers: Repository<Customer>,
     @InjectRepository(IntegrationState)
     private readonly state: Repository<IntegrationState>,
     private readonly woo: WooClient,
@@ -114,10 +114,20 @@ export class WooSyncService {
   }
 
   /**
-   * Three cases, in order: a record we imported before, a record that already
-   * existed in our own base under the same email, or somebody new.
+   * Imported buyers live in their own table, so there is no account to collide
+   * with: either we have seen this person before, or we have not.
    */
   private async upsert(contact: WooContact): Promise<'created' | 'updated' | 'linked'> {
+    const existing = await this.customers.findOne({
+      where: { source: WOO_SOURCE, external_id: contact.external_id },
+    });
+
+    // An incremental run only sees recent orders, so the stored history has to
+    // be merged in rather than overwritten.
+    const source_data = existing
+      ? mergeSourceData(existing.source_data as Partial<SourceData> | null, contact.source_data)
+      : contact.source_data;
+
     const fields = {
       full_name: contact.full_name,
       email: contact.email,
@@ -126,46 +136,23 @@ export class WooSyncService {
       region: contact.region,
       settlement: contact.settlement,
       address: contact.address,
-      source_data: contact.source_data,
+      source_data,
+      first_order_at: source_data.firstOrderAt ? new Date(`${source_data.firstOrderAt}Z`) : null,
+      last_order_at: source_data.lastOrderAt ? new Date(`${source_data.lastOrderAt}Z`) : null,
     };
 
-    // Looked up by external_id alone: a record we claimed in an earlier run
-    // keeps its original source, and matching on source too would miss it and
-    // insert a duplicate.
-    const existing = await this.accounts.findOne({
-      where: { external_id: contact.external_id },
-    });
     if (existing) {
-      if (existing.source !== WOO_SOURCE) return 'linked';
-      await this.accounts.update(existing.id, fields);
+      await this.customers.update(existing.id, fields);
       return 'updated';
     }
 
-    if (contact.email) {
-      const own = await this.accounts.findOne({
-        where: { email: contact.email, external_id: IsNull() },
-      });
-      if (own) {
-        // Somebody registered in our app with this email. Claim the record for
-        // future syncs but leave the fields they filled in alone.
-        await this.accounts.update(own.id, { external_id: contact.external_id });
-        return 'linked';
-      }
-    }
-
-    await this.accounts.save(
-      this.accounts.create({
-        ...fields,
-        role: 'user',
-        source: WOO_SOURCE,
-        external_id: contact.external_id,
-        is_email_confirmation: false,
-      }),
+    await this.customers.save(
+      this.customers.create({ ...fields, source: WOO_SOURCE, external_id: contact.external_id }),
     );
     return 'created';
   }
 
   async importedCount(): Promise<number> {
-    return this.accounts.count({ where: { source: WOO_SOURCE, external_id: Not(IsNull()) } });
+    return this.customers.count({ where: { source: WOO_SOURCE } });
   }
 }

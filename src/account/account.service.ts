@@ -7,7 +7,7 @@ const PUBLIC_FIELDS = [
   'id', 'full_name', 'email', 'number', 'avatar', 'role',
   'name_company', 'code_company', 'is_email_confirmation',
   'name_bank', 'number_bank', 'region', 'settlement',
-  'address', 'type_account_subject', 'source', 'createdAt', 'updatedAt',
+  'address', 'type_account_subject', 'createdAt', 'updatedAt',
 ] as const;
 
 // Only these may be written through the admin panel: password, role escalation
@@ -25,7 +25,7 @@ export class AccountService {
     private readonly accountRepository: Repository<Account>,
   ) {}
 
-  async findAll(page: number, limit: number, search?: string, source?: string): Promise<{ data: Omit<Account, 'password'>[]; total: number; page: number; limit: number }> {
+  async findAll(page: number, limit: number, search?: string): Promise<{ data: Omit<Account, 'password'>[]; total: number; page: number; limit: number }> {
     const qb = this.accountRepository
       .createQueryBuilder('account')
       .select(PUBLIC_FIELDS.map((f) => `account.${f}`))
@@ -33,14 +33,10 @@ export class AccountService {
       .skip((page - 1) * limit)
       .take(limit);
 
-    if (source) {
-      qb.andWhere('account.source = :source', { source });
-    }
-
     const term = search?.trim();
     if (term) {
       const pattern = `%${term}%`;
-      qb.andWhere(
+      qb.where(
         new Brackets((b) => {
           b.where('account.full_name ILIKE :pattern', { pattern })
             .orWhere('account.email ILIKE :pattern', { pattern })
@@ -51,10 +47,7 @@ export class AccountService {
             .orWhere('account.region ILIKE :pattern', { pattern })
             .orWhere('account.settlement ILIKE :pattern', { pattern })
             .orWhere('account.address ILIKE :pattern', { pattern })
-            .orWhere('CAST(account.code_company AS TEXT) ILIKE :pattern', { pattern })
-            // Imported customers keep every email, phone spelling and address
-            // they ever used in source_data, so an old one still finds them.
-            .orWhere('account.source_data::text ILIKE :pattern', { pattern });
+            .orWhere('CAST(account.code_company AS TEXT) ILIKE :pattern', { pattern });
         }),
       );
     }

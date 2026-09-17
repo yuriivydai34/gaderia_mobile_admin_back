@@ -13,6 +13,8 @@ import { CatalogModule } from './catalog/catalog.module';
 import { Catalog } from './catalog/catalog.entity';
 import { ShiftModule } from './shift/shift.module';
 import { Shift } from './shift/shift.entity';
+import { CustomerModule } from './customer/customer.module';
+import { Customer } from './customer/customer.entity';
 import { WooModule } from './integration/woocommerce/woo.module';
 import { IntegrationState } from './integration/woocommerce/integration-state.entity';
 
@@ -27,7 +29,7 @@ import { IntegrationState } from './integration/woocommerce/integration-state.en
       username: process.env.DB_USER ?? 'postgres',
       password: process.env.DB_PASSWORD ?? 'postgres',
       database: process.env.DB_NAME ?? 'your_database_name',
-      entities: [Account, Payment, Catalog, Shift, IntegrationState],
+      entities: [Account, Payment, Catalog, Shift, Customer, IntegrationState],
       synchronize: false,
     }),
     AuthModule,
@@ -35,6 +37,7 @@ import { IntegrationState } from './integration/woocommerce/integration-state.en
     PaymentModule,
     CatalogModule,
     ShiftModule,
+    CustomerModule,
     WooModule,
   ],
   controllers: [AppController],

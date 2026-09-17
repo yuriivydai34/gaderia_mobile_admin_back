@@ -74,9 +74,16 @@ export type OrderSummary = {
   ttn: string | null;
 };
 
+/** A value together with when the shop first and last saw it. */
+export type Seen = {
+  value: string;
+  firstSeen: string | null;
+  lastSeen: string | null;
+};
+
 export type SourceData = {
-  emails: string[];
-  phones: string[];
+  emails: Seen[];
+  phones: Seen[];
   names: string[];
   patronymics: string[];
   companies: string[];
@@ -100,6 +107,9 @@ export type WooContact = {
   settlement: string | null;
   address: string | null;
   source_data: SourceData;
+  /** Promoted out of source_data so the database can sort and filter on them. */
+  first_order_at: string | null;
+  last_order_at: string | null;
   /** Newest order seen for this person, so later orders win on conflict. */
   seen_at: string;
 };
@@ -140,6 +150,23 @@ function addUnique(list: string[], value: string | null): void {
   if (value && !list.includes(value)) list.push(value);
 }
 
+/**
+ * Record a value against the date of the order it came from, so it is possible
+ * to say when an address or a number first showed up and when it was last used.
+ */
+function addSeen(list: Seen[], value: string | null, at: string | null): void {
+  if (!value) return;
+  const existing = list.find((s) => s.value === value);
+  if (!existing) {
+    list.push({ value, firstSeen: at, lastSeen: at });
+    return;
+  }
+  if (at) {
+    if (!existing.firstSeen || at < existing.firstSeen) existing.firstSeen = at;
+    if (!existing.lastSeen || at > existing.lastSeen) existing.lastSeen = at;
+  }
+}
+
 function emptySourceData(): SourceData {
   return {
     emails: [], phones: [], names: [], patronymics: [], companies: [],
@@ -177,8 +204,10 @@ export class ContactCollector {
     const region = clean(billing?.state);
     const settlement = clean(billing?.city);
 
-    addUnique(data.emails, email);
-    addUnique(data.phones, phone);
+    // Dated against when the order was placed, not when it was last edited.
+    const placedAt = order.date_created_gmt ?? null;
+    addSeen(data.emails, email, placedAt);
+    addSeen(data.phones, phone, placedAt);
     addUnique(data.names, name);
     addUnique(data.companies, company);
     addUnique(data.addresses, address);
@@ -231,6 +260,8 @@ export class ContactCollector {
       settlement:   newer ? settlement ?? existing?.settlement ?? null : existing?.settlement ?? settlement,
       address:      newer ? address ?? existing?.address ?? null : existing?.address ?? address,
       source_data:  data,
+      first_order_at: data.firstOrderAt,
+      last_order_at:  data.lastOrderAt,
       seen_at:      newer ? at : existing.seen_at,
     });
   }
@@ -242,6 +273,51 @@ export class ContactCollector {
   values(): WooContact[] {
     return [...this.people.values()];
   }
+}
+
+/**
+ * Combine what is already stored for a person with what a later run found.
+ *
+ * Without this an incremental sync would overwrite source_data with just the
+ * orders in its window, throwing away everything older. Every step is a union
+ * or a min/max, so merging the same data twice changes nothing.
+ */
+export function mergeSourceData(stored: Partial<SourceData> | null | undefined, incoming: SourceData): SourceData {
+  const merged = emptySourceData();
+
+  for (const [into, lists] of [
+    [merged.emails, [stored?.emails ?? [], incoming.emails]],
+    [merged.phones, [stored?.phones ?? [], incoming.phones]],
+  ] as [Seen[], Seen[][]][]) {
+    for (const list of lists) {
+      for (const seen of list) {
+        // Feeding both ends through addSeen keeps the min/max, whichever side
+        // happened to hold the earlier or later date.
+        addSeen(into, seen.value, seen.firstSeen);
+        addSeen(into, seen.value, seen.lastSeen);
+      }
+    }
+  }
+  for (const key of ['names', 'patronymics', 'companies', 'addresses', 'notes'] as const) {
+    for (const value of [...(stored?.[key] ?? []), ...incoming[key]]) addUnique(merged[key], value);
+  }
+  for (const record of [...(stored?.delivery ?? []), ...incoming.delivery]) {
+    const serialised = JSON.stringify(record);
+    if (!merged.delivery.some((d) => JSON.stringify(d) === serialised)) merged.delivery.push(record);
+  }
+  for (const order of [...(stored?.orders ?? []), ...incoming.orders]) {
+    if (!merged.orders.some((o) => o.id === order.id)) merged.orders.push(order);
+  }
+
+  merged.orders.sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''));
+  merged.ordersCount = merged.orders.length;
+  merged.totalSpent = Number(
+    merged.orders.reduce((sum, o) => sum + (Number(o.total) || 0), 0).toFixed(2),
+  );
+  const dates = merged.orders.map((o) => o.date).filter(Boolean) as string[];
+  merged.firstOrderAt = dates[0] ?? null;
+  merged.lastOrderAt = dates[dates.length - 1] ?? null;
+  return merged;
 }
 
 /** Convenience wrapper for tests and small batches. */
