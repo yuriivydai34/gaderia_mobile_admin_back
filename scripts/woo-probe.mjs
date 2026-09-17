@@ -8,6 +8,18 @@
  *   node scripts/woo-probe.mjs
  */
 
+// Pick up a local .env so the keys never have to be typed on the command line.
+try {
+  const { readFileSync } = await import('node:fs');
+  const env = readFileSync(new URL('../.env', import.meta.url), 'utf8');
+  for (const line of env.split(/\r?\n/)) {
+    const match = /^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*)$/.exec(line);
+    if (match && !process.env[match[1]]) {
+      process.env[match[1]] = match[2].trim().replace(/^["']|["']$/g, '');
+    }
+  }
+} catch { /* no .env - fall back to the real environment */ }
+
 const url = (process.env.WOO_URL ?? '').replace(/\/+$/, '');
 const key = process.env.WOO_CONSUMER_KEY;
 const secret = process.env.WOO_CONSUMER_SECRET;
