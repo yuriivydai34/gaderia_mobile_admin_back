@@ -1,7 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Brackets, Repository } from 'typeorm';
 import { Account } from './account.entity';
+
+const PUBLIC_FIELDS = [
+  'id', 'full_name', 'email', 'number', 'avatar', 'role',
+  'name_company', 'code_company', 'is_email_confirmation',
+  'name_bank', 'number_bank', 'region', 'settlement',
+  'address', 'type_account_subject', 'createdAt', 'updatedAt',
+] as const;
 
 @Injectable()
 export class AccountService {
@@ -10,17 +17,34 @@ export class AccountService {
     private readonly accountRepository: Repository<Account>,
   ) {}
 
-  async findAll(page: number, limit: number): Promise<{ data: Omit<Account, 'password'>[]; total: number; page: number; limit: number }> {
-    const [data, total] = await this.accountRepository.findAndCount({
-      select: [
-        'id', 'full_name', 'email', 'number', 'avatar', 'role',
-        'name_company', 'code_company', 'is_email_confirmation',
-        'name_bank', 'number_bank', 'region', 'settlement',
-        'address', 'type_account_subject', 'createdAt', 'updatedAt',
-      ],
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+  async findAll(page: number, limit: number, search?: string): Promise<{ data: Omit<Account, 'password'>[]; total: number; page: number; limit: number }> {
+    const qb = this.accountRepository
+      .createQueryBuilder('account')
+      .select(PUBLIC_FIELDS.map((f) => `account.${f}`))
+      .orderBy('account.id', 'ASC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const term = search?.trim();
+    if (term) {
+      const pattern = `%${term}%`;
+      qb.where(
+        new Brackets((b) => {
+          b.where('account.full_name ILIKE :pattern', { pattern })
+            .orWhere('account.email ILIKE :pattern', { pattern })
+            .orWhere('account.number ILIKE :pattern', { pattern })
+            .orWhere('account.name_company ILIKE :pattern', { pattern })
+            .orWhere('account.name_bank ILIKE :pattern', { pattern })
+            .orWhere('account.number_bank ILIKE :pattern', { pattern })
+            .orWhere('account.region ILIKE :pattern', { pattern })
+            .orWhere('account.settlement ILIKE :pattern', { pattern })
+            .orWhere('account.address ILIKE :pattern', { pattern })
+            .orWhere('CAST(account.code_company AS TEXT) ILIKE :pattern', { pattern });
+        }),
+      );
+    }
+
+    const [data, total] = await qb.getManyAndCount();
     return { data, total, page, limit };
   }
 

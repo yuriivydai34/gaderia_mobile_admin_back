@@ -12,7 +12,8 @@ export class AccountController {
   findAll(
     @Query('page') page = '1',
     @Query('limit') limit = '10',
+    @Query('search') search?: string,
   ) {
-    return this.accountService.findAll(Number(page), Number(limit));
+    return this.accountService.findAll(Number(page), Number(limit), search);
   }
 }
