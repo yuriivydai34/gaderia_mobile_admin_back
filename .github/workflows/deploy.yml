@@ -26,14 +26,19 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Copy dist to server
+      # migrations/ and scripts/ have to travel too: the schema is applied by
+      # hand on the server, and the import is run from there.
+      - name: Copy build and operational files to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
-          source: 'dist/'
+          source: |
+            dist/
+            migrations/
+            scripts/
           target: ${{ secrets.APP_PATH }}
 
       - name: Deploy to server
