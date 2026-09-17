@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseIntPipe, Patch, Query, UseGuards } from '@nestjs/common';
 import { AccountService } from './account.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
@@ -15,5 +15,13 @@ export class AccountController {
     @Query('search') search?: string,
   ) {
     return this.accountService.findAll(Number(page), Number(limit), search);
+  }
+
+  @Patch(':id')
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.accountService.updateProfile(id, body);
   }
 }

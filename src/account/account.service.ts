@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, Repository } from 'typeorm';
 import { Account } from './account.entity';
@@ -8,6 +8,14 @@ const PUBLIC_FIELDS = [
   'name_company', 'code_company', 'is_email_confirmation',
   'name_bank', 'number_bank', 'region', 'settlement',
   'address', 'type_account_subject', 'createdAt', 'updatedAt',
+] as const;
+
+// Only these may be written through the admin panel: password, role escalation
+// helpers and the confirmation code are deliberately left out.
+const EDITABLE_FIELDS = [
+  'full_name', 'email', 'number', 'role',
+  'name_company', 'code_company', 'type_account_subject',
+  'name_bank', 'number_bank', 'region', 'settlement', 'address',
 ] as const;
 
 @Injectable()
@@ -46,6 +54,35 @@ export class AccountService {
 
     const [data, total] = await qb.getManyAndCount();
     return { data, total, page, limit };
+  }
+
+  async updateProfile(id: number, body: Record<string, unknown>): Promise<Omit<Account, 'password'>> {
+    const patch: Record<string, string | number | null> = {};
+
+    for (const field of EDITABLE_FIELDS) {
+      if (!(field in body)) continue;
+      const raw = body[field];
+      // The admin form submits empty strings for fields that were cleared.
+      const value = raw === '' || raw === undefined ? null : raw;
+
+      if (field === 'code_company') {
+        const parsed = value === null ? null : Number(value);
+        patch[field] = parsed === null || Number.isNaN(parsed) ? null : parsed;
+      } else {
+        patch[field] = value === null ? null : String(value);
+      }
+    }
+
+    if (Object.keys(patch).length > 0) {
+      await this.accountRepository.update(id, patch);
+    }
+
+    const updated = await this.accountRepository.findOne({
+      where: { id },
+      select: [...PUBLIC_FIELDS],
+    });
+    if (!updated) throw new NotFoundException(`Account ${id} not found`);
+    return updated;
   }
 
   findByEmail(email: string): Promise<Account | null> {
