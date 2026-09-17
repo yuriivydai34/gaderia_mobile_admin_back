@@ -72,4 +72,8 @@ export class Account {
   /** Identity in the source system; null for records created in the panel. */
   @Column({ name: 'external_id', type: 'varchar', nullable: true, default: null })
   external_id: string | null;
+
+  /** Everything the source system knew that does not fit the flat columns. */
+  @Column({ name: 'source_data', type: 'jsonb', nullable: true, default: null })
+  source_data: object | null;
 }

@@ -1,9 +1,14 @@
 /**
- * Mapping from a WooCommerce order's billing block to our Account fields.
+ * Turning WooCommerce orders into people.
  *
- * The shop has always sold to guests, so orders carry `customer_id: 0` and
- * there is no WooCommerce customer to key on. A person is therefore identified
- * by their billing email, falling back to their phone number.
+ * Measured against the live shop before this was written (scripts/woo-probe.mjs):
+ * every order is a guest order, billing.phone is present on 100% of them and
+ * billing.email on only ~69%, so the phone is the identity and the email is a
+ * fallback. Joining people on "same phone OR same email" was tried and rejected:
+ * one shared email chained 52 distinct customers into a single group.
+ *
+ * Duplicates are acceptable here - losing information is not - so anything that
+ * cannot be collapsed with confidence is kept alongside rather than dropped.
  */
 
 export type WooBilling = {
@@ -20,11 +25,69 @@ export type WooBilling = {
   country?: string | null;
 };
 
+export type WooMeta = { key?: string; value?: unknown };
+
 export type WooOrder = {
   id: number;
-  date_modified_gmt?: string | null;
+  number?: string | null;
+  status?: string | null;
+  total?: string | null;
+  currency?: string | null;
+  customer_note?: string | null;
+  payment_method_title?: string | null;
   date_created_gmt?: string | null;
+  date_modified_gmt?: string | null;
   billing?: WooBilling | null;
+  shipping?: WooBilling | null;
+  meta_data?: WooMeta[] | null;
+};
+
+// Personal and delivery meta keys, as they actually appear in this shop.
+// Marketing attribution (_wc_order_attribution_*) is deliberately left out.
+const META_PATRONYMIC = [
+  'mrkv_ua_shipping_ukr-poshta_patronymic',
+  'mrkv_ua_shipping_nova-poshta_address_patronymic',
+];
+
+const META_DELIVERY = [
+  'mrkv_ua_shipping_nova-poshta_city',
+  'mrkv_ua_shipping_nova-poshta_city_ref',
+  'mrkv_ua_shipping_nova-poshta_warehouse_ref',
+  'mrkv_ua_shipping_nova-poshta_address_city',
+  'mrkv_ua_shipping_nova-poshta_address_street_ref',
+  'mrkv_ua_shipping_nova-poshta_address_flat',
+  'mrkv_ua_shipping_ukr-poshta_city_ref',
+  'mrkv_ua_shipping_ukr-poshta_address_ref',
+  'mrkv_ua_ship_invoice_number',
+];
+
+const META_TTN = 'mrkv_ua_ship_invoice_number';
+
+export type OrderSummary = {
+  id: number;
+  number: string | null;
+  date: string | null;
+  status: string | null;
+  total: string | null;
+  currency: string | null;
+  payment: string | null;
+  ttn: string | null;
+};
+
+export type SourceData = {
+  emails: string[];
+  phones: string[];
+  names: string[];
+  patronymics: string[];
+  companies: string[];
+  addresses: string[];
+  delivery: Record<string, string>[];
+  notes: string[];
+  orders: OrderSummary[];
+  ordersCount: number;
+  firstOrderAt: string | null;
+  lastOrderAt: string | null;
+  totalSpent: number;
 };
 
 export type WooContact = {
@@ -36,12 +99,13 @@ export type WooContact = {
   region: string | null;
   settlement: string | null;
   address: string | null;
-  /** Newest order this contact was seen on, so later orders win on conflict. */
+  source_data: SourceData;
+  /** Newest order seen for this person, so later orders win on conflict. */
   seen_at: string;
 };
 
-function clean(value: string | null | undefined): string | null {
-  const trimmed = (value ?? '').trim();
+function clean(value: unknown): string | null {
+  const trimmed = String(value ?? '').trim();
   return trimmed === '' ? null : trimmed;
 }
 
@@ -49,77 +113,140 @@ function clean(value: string | null | undefined): string | null {
 export function normalisePhone(phone: string | null | undefined): string | null {
   const digits = (phone ?? '').replace(/\D/g, '');
   if (digits.length < 9) return null;
-  // Ukrainian numbers reach us as 0XXXXXXXXX, 380XXXXXXXXX or 80XXXXXXXXX.
-  const tail = digits.slice(-9);
-  return `380${tail}`;
+  return `380${digits.slice(-9)}`;
 }
 
 export function identify(billing: WooBilling | null | undefined): string | null {
-  const email = clean(billing?.email)?.toLowerCase();
-  if (email) return `email:${email}`;
   const phone = normalisePhone(billing?.phone);
-  return phone ? `phone:${phone}` : null;
+  if (phone) return `phone:${phone}`;
+  const email = clean(billing?.email)?.toLowerCase();
+  return email ? `email:${email}` : null;
 }
 
-export function toContact(order: WooOrder): WooContact | null {
-  const billing = order.billing;
-  const external_id = identify(billing);
-  if (!external_id) return null;
+function metaValue(order: WooOrder, key: string): string | null {
+  const hit = (order.meta_data ?? []).find((m) => m.key === key);
+  return clean(hit?.value);
+}
 
-  const name = [clean(billing?.first_name), clean(billing?.last_name)]
-    .filter(Boolean)
-    .join(' ');
-
-  const address = [clean(billing?.address_1), clean(billing?.address_2), clean(billing?.postcode)]
+function formatAddress(a: WooBilling | null | undefined): string | null {
+  const joined = [clean(a?.address_1), clean(a?.address_2), clean(a?.postcode), clean(a?.city), clean(a?.state)]
     .filter(Boolean)
     .join(', ');
+  return joined === '' ? null : joined;
+}
 
+/** Append only if new, preserving the order things were first seen in. */
+function addUnique(list: string[], value: string | null): void {
+  if (value && !list.includes(value)) list.push(value);
+}
+
+function emptySourceData(): SourceData {
   return {
-    external_id,
-    full_name: name === '' ? null : name,
-    email: clean(billing?.email)?.toLowerCase() ?? null,
-    number: clean(billing?.phone),
-    name_company: clean(billing?.company),
-    region: clean(billing?.state),
-    settlement: clean(billing?.city),
-    address: address === '' ? null : address,
-    seen_at: order.date_modified_gmt ?? order.date_created_gmt ?? '',
+    emails: [], phones: [], names: [], patronymics: [], companies: [],
+    addresses: [], delivery: [], notes: [], orders: [],
+    ordersCount: 0, firstOrderAt: null, lastOrderAt: null, totalSpent: 0,
   };
 }
 
 /**
- * One person can appear on many orders, with details that changed over time.
- * Collapse them, keeping the newest non-empty value for each field.
+ * Accumulates orders into one record per person. Fed page by page, so the whole
+ * order history never has to be held at once: at ~6 KB per order and ~17k
+ * orders, buffering them would cost about 100 MB.
  */
-export function collapse(orders: WooOrder[]): WooContact[] {
-  const byId = new Map<string, WooContact>();
+export class ContactCollector {
+  private readonly people = new Map<string, WooContact>();
 
-  for (const order of orders) {
-    const contact = toContact(order);
-    if (!contact) continue;
+  get size(): number {
+    return this.people.size;
+  }
 
-    const existing = byId.get(contact.external_id);
-    if (!existing) {
-      byId.set(contact.external_id, contact);
-      continue;
+  add(order: WooOrder): void {
+    const billing = order.billing;
+    const external_id = identify(billing);
+    if (!external_id) return;
+
+    const at = order.date_modified_gmt ?? order.date_created_gmt ?? '';
+    const existing = this.people.get(external_id);
+    const data = existing?.source_data ?? emptySourceData();
+
+    const name = [clean(billing?.first_name), clean(billing?.last_name)].filter(Boolean).join(' ') || null;
+    const email = clean(billing?.email)?.toLowerCase() ?? null;
+    const phone = clean(billing?.phone);
+    const company = clean(billing?.company);
+    const address = formatAddress(billing);
+    const region = clean(billing?.state);
+    const settlement = clean(billing?.city);
+
+    addUnique(data.emails, email);
+    addUnique(data.phones, phone);
+    addUnique(data.names, name);
+    addUnique(data.companies, company);
+    addUnique(data.addresses, address);
+    addUnique(data.addresses, formatAddress(order.shipping));
+    addUnique(data.notes, clean(order.customer_note));
+    for (const key of META_PATRONYMIC) addUnique(data.patronymics, metaValue(order, key));
+
+    const delivery: Record<string, string> = {};
+    for (const key of META_DELIVERY) {
+      const value = metaValue(order, key);
+      if (value) delivery[key.replace('mrkv_ua_shipping_', '').replace('mrkv_ua_', '')] = value;
+    }
+    if (Object.keys(delivery).length > 0) {
+      const serialised = JSON.stringify(delivery);
+      if (!data.delivery.some((d) => JSON.stringify(d) === serialised)) {
+        data.delivery.push(delivery);
+      }
     }
 
-    const [older, newer] = contact.seen_at >= existing.seen_at
-      ? [existing, contact]
-      : [contact, existing];
+    if (!data.orders.some((o) => o.id === order.id)) {
+      data.orders.push({
+        id: order.id,
+        number: clean(order.number),
+        date: order.date_created_gmt ?? null,
+        status: clean(order.status),
+        total: clean(order.total),
+        currency: clean(order.currency),
+        payment: clean(order.payment_method_title),
+        ttn: metaValue(order, META_TTN),
+      });
+      data.ordersCount = data.orders.length;
+      data.totalSpent = Number(
+        data.orders.reduce((sum, o) => sum + (Number(o.total) || 0), 0).toFixed(2),
+      );
+      const dates = data.orders.map((o) => o.date).filter(Boolean).sort() as string[];
+      data.firstOrderAt = dates[0] ?? null;
+      data.lastOrderAt = dates[dates.length - 1] ?? null;
+    }
 
-    byId.set(contact.external_id, {
-      external_id: newer.external_id,
-      full_name:    newer.full_name    ?? older.full_name,
-      email:        newer.email        ?? older.email,
-      number:       newer.number       ?? older.number,
-      name_company: newer.name_company ?? older.name_company,
-      region:       newer.region       ?? older.region,
-      settlement:   newer.settlement   ?? older.settlement,
-      address:      newer.address      ?? older.address,
-      seen_at:      newer.seen_at,
+    // The flat columns follow the newest order; everything earlier stays in
+    // source_data rather than being overwritten.
+    const newer = !existing || at >= existing.seen_at;
+    this.people.set(external_id, {
+      external_id,
+      full_name:    newer ? name ?? existing?.full_name ?? null : existing?.full_name ?? name,
+      email:        newer ? email ?? existing?.email ?? null : existing?.email ?? email,
+      number:       newer ? phone ?? existing?.number ?? null : existing?.number ?? phone,
+      name_company: newer ? company ?? existing?.name_company ?? null : existing?.name_company ?? company,
+      region:       newer ? region ?? existing?.region ?? null : existing?.region ?? region,
+      settlement:   newer ? settlement ?? existing?.settlement ?? null : existing?.settlement ?? settlement,
+      address:      newer ? address ?? existing?.address ?? null : existing?.address ?? address,
+      source_data:  data,
+      seen_at:      newer ? at : existing.seen_at,
     });
   }
 
-  return [...byId.values()];
+  addAll(orders: WooOrder[]): void {
+    for (const order of orders) this.add(order);
+  }
+
+  values(): WooContact[] {
+    return [...this.people.values()];
+  }
+}
+
+/** Convenience wrapper for tests and small batches. */
+export function collapse(orders: WooOrder[]): WooContact[] {
+  const collector = new ContactCollector();
+  collector.addAll(orders);
+  return collector.values();
 }

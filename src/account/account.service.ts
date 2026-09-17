@@ -51,7 +51,10 @@ export class AccountService {
             .orWhere('account.region ILIKE :pattern', { pattern })
             .orWhere('account.settlement ILIKE :pattern', { pattern })
             .orWhere('account.address ILIKE :pattern', { pattern })
-            .orWhere('CAST(account.code_company AS TEXT) ILIKE :pattern', { pattern });
+            .orWhere('CAST(account.code_company AS TEXT) ILIKE :pattern', { pattern })
+            // Imported customers keep every email, phone spelling and address
+            // they ever used in source_data, so an old one still finds them.
+            .orWhere('account.source_data::text ILIKE :pattern', { pattern });
         }),
       );
     }

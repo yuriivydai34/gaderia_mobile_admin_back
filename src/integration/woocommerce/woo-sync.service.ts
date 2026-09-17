@@ -4,7 +4,7 @@ import { IsNull, Not, Repository } from 'typeorm';
 import { Account } from '../../account/account.entity';
 import { IntegrationState } from './integration-state.entity';
 import { WooClient } from './woo.client';
-import { WooContact, collapse } from './woo-contact';
+import { ContactCollector, WooContact } from './woo-contact';
 
 export const WOO_SOURCE = 'woocommerce';
 const CURSOR_KEY = 'woocommerce.orders.modified_after';
@@ -57,9 +57,28 @@ export class WooSyncService {
       const since = options.full ? null : await this.getCursor();
       this.logger.log(since ? `syncing orders modified after ${since}` : 'syncing all orders');
 
-      const { orders, strategy } = await this.woo.fetchOrders(since);
-      const contacts = collapse(orders);
+      // Streamed page by page: the shop holds ~17k orders at ~6 KB each, so
+      // buffering the lot would cost about 100 MB of heap.
+      const collector = new ContactCollector();
+      let ordersScanned = 0;
+      let newest = '';
+      let strategy: 'modified' | 'created' = 'modified';
 
+      for await (const batch of this.woo.streamOrders(since)) {
+        strategy = batch.strategy;
+        collector.addAll(batch.orders);
+        ordersScanned += batch.orders.length;
+        for (const order of batch.orders) {
+          // Must match whatever the shop actually filtered on, or the next run
+          // asks for a window that does not line up.
+          const at = (strategy === 'modified'
+            ? order.date_modified_gmt ?? order.date_created_gmt
+            : order.date_created_gmt ?? order.date_modified_gmt) ?? '';
+          if (at > newest) newest = at;
+        }
+      }
+
+      const contacts = collector.values();
       let created = 0;
       let updated = 0;
       let linkedToExisting = 0;
@@ -72,26 +91,14 @@ export class WooSyncService {
       }
 
       // Advance only on success, and only as far as the newest order actually
-      // seen - so a run that fails halfway is simply repeated next time.
-      // Must match whatever the shop actually filtered on, or the next run
-      // asks for a window that does not line up.
-      const newest = orders
-        .map((o) => (strategy === 'modified'
-          ? o.date_modified_gmt ?? o.date_created_gmt
-          : o.date_created_gmt ?? o.date_modified_gmt) ?? '')
-        .filter(Boolean)
-        .sort()
-        .pop();
-      // Rewound a second, because WooCommerce treats modified_after as
-      // exclusive. Re-reading an order is harmless - the upsert is idempotent -
-      // whereas skipping one loses a customer.
+      // seen - a run that fails halfway is simply repeated next time.
       const cursor = newest ? rewindOneSecond(newest) : since;
       if (cursor) {
         await this.state.save({ key: CURSOR_KEY, value: cursor });
       }
 
       const result: SyncResult = {
-        ordersScanned: orders.length,
+        ordersScanned,
         contactsFound: contacts.length,
         created,
         updated,
@@ -119,6 +126,7 @@ export class WooSyncService {
       region: contact.region,
       settlement: contact.settlement,
       address: contact.address,
+      source_data: contact.source_data,
     };
 
     // Looked up by external_id alone: a record we claimed in an earlier run

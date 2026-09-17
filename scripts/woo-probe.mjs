@@ -20,11 +20,13 @@ try {
   }
 } catch { /* no .env - fall back to the real environment */ }
 
-const url = (process.env.WOO_URL ?? '').replace(/\/+$/, '');
+const raw = (process.env.WOO_URL ?? '').replace(/\/+$/, '');
+// Accept both the site root and a ready .../wp-json/wc/v3 path.
+const url = /\/wp-json\/wc\/v\d+$/.test(raw) ? raw : `${raw}/wp-json/wc/v3`;
 const key = process.env.WOO_CONSUMER_KEY;
 const secret = process.env.WOO_CONSUMER_SECRET;
 
-if (!url || !key || !secret) {
+if (!raw || !key || !secret) {
   console.error('Set WOO_URL, WOO_CONSUMER_KEY and WOO_CONSUMER_SECRET first.');
   process.exit(1);
 }
@@ -32,7 +34,7 @@ if (!url || !key || !secret) {
 const auth = Buffer.from(`${key}:${secret}`).toString('base64');
 
 async function get(path, params = {}) {
-  const endpoint = new URL(`${url}/wp-json/wc/v3/${path}`);
+  const endpoint = new URL(`${url}/${path}`);
   for (const [k, v] of Object.entries(params)) endpoint.searchParams.set(k, String(v));
   const res = await fetch(endpoint.toString(), {
     headers: { Authorization: `Basic ${auth}`, Accept: 'application/json' },
