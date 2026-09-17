@@ -13,8 +13,9 @@ export class AccountController {
     @Query('page') page = '1',
     @Query('limit') limit = '10',
     @Query('search') search?: string,
+    @Query('source') source?: string,
   ) {
-    return this.accountService.findAll(Number(page), Number(limit), search);
+    return this.accountService.findAll(Number(page), Number(limit), search, source);
   }
 
   @Patch(':id')

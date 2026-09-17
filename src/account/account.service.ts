@@ -7,7 +7,7 @@ const PUBLIC_FIELDS = [
   'id', 'full_name', 'email', 'number', 'avatar', 'role',
   'name_company', 'code_company', 'is_email_confirmation',
   'name_bank', 'number_bank', 'region', 'settlement',
-  'address', 'type_account_subject', 'createdAt', 'updatedAt',
+  'address', 'type_account_subject', 'source', 'createdAt', 'updatedAt',
 ] as const;
 
 // Only these may be written through the admin panel: password, role escalation
@@ -25,7 +25,7 @@ export class AccountService {
     private readonly accountRepository: Repository<Account>,
   ) {}
 
-  async findAll(page: number, limit: number, search?: string): Promise<{ data: Omit<Account, 'password'>[]; total: number; page: number; limit: number }> {
+  async findAll(page: number, limit: number, search?: string, source?: string): Promise<{ data: Omit<Account, 'password'>[]; total: number; page: number; limit: number }> {
     const qb = this.accountRepository
       .createQueryBuilder('account')
       .select(PUBLIC_FIELDS.map((f) => `account.${f}`))
@@ -33,10 +33,14 @@ export class AccountService {
       .skip((page - 1) * limit)
       .take(limit);
 
+    if (source) {
+      qb.andWhere('account.source = :source', { source });
+    }
+
     const term = search?.trim();
     if (term) {
       const pattern = `%${term}%`;
-      qb.where(
+      qb.andWhere(
         new Brackets((b) => {
           b.where('account.full_name ILIKE :pattern', { pattern })
             .orWhere('account.email ILIKE :pattern', { pattern })

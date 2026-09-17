@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -12,10 +13,13 @@ import { CatalogModule } from './catalog/catalog.module';
 import { Catalog } from './catalog/catalog.entity';
 import { ShiftModule } from './shift/shift.module';
 import { Shift } from './shift/shift.entity';
+import { WooModule } from './integration/woocommerce/woo.module';
+import { IntegrationState } from './integration/woocommerce/integration-state.entity';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.DB_HOST ?? 'localhost',
@@ -23,7 +27,7 @@ import { Shift } from './shift/shift.entity';
       username: process.env.DB_USER ?? 'postgres',
       password: process.env.DB_PASSWORD ?? 'postgres',
       database: process.env.DB_NAME ?? 'your_database_name',
-      entities: [Account, Payment, Catalog, Shift],
+      entities: [Account, Payment, Catalog, Shift, IntegrationState],
       synchronize: false,
     }),
     AuthModule,
@@ -31,6 +35,7 @@ import { Shift } from './shift/shift.entity';
     PaymentModule,
     CatalogModule,
     ShiftModule,
+    WooModule,
   ],
   controllers: [AppController],
   providers: [AppService],
