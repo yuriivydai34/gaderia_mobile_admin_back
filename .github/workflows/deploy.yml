@@ -54,6 +54,9 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
           script: |
+            # Without it a failing step does not stop the ones after it: the
+            # migration check below printed PENDING and pm2 restarted anyway.
+            set -e
             cd ${{ secrets.APP_PATH }}
             npm ci --omit=dev
             # Read-only: fails the deploy if migrations/ holds a file the
