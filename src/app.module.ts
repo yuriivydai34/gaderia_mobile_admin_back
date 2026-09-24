@@ -7,6 +7,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { AccountModule } from './account/account.module';
 import { Account } from './account/account.entity';
+import { AccountDocument } from './account/account-document.entity';
 import { PaymentModule } from './payment/payment.module';
 import { Payment } from './payment/payment.entity';
 import { CatalogModule } from './catalog/catalog.module';
@@ -29,7 +30,7 @@ import { IntegrationState } from './integration/woocommerce/integration-state.en
       username: process.env.DB_USER ?? 'postgres',
       password: process.env.DB_PASSWORD ?? 'postgres',
       database: process.env.DB_NAME ?? 'your_database_name',
-      entities: [Account, Payment, Catalog, Shift, Customer, IntegrationState],
+      entities: [Account, AccountDocument, Payment, Catalog, Shift, Customer, IntegrationState],
       synchronize: false,
     }),
     AuthModule,

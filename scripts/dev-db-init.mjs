@@ -20,6 +20,7 @@ import { readFileSync } from 'node:fs';
 import { DataSource } from 'typeorm';
 
 import { Account } from '../dist/account/account.entity.js';
+import { AccountDocument } from '../dist/account/account-document.entity.js';
 import { Payment } from '../dist/payment/payment.entity.js';
 import { Catalog } from '../dist/catalog/catalog.entity.js';
 import { Shift } from '../dist/shift/shift.entity.js';
@@ -49,7 +50,7 @@ const ds = new DataSource({
   username: process.env.DEV_DB_USER ?? 'gaderia',
   password: process.env.DEV_DB_PASSWORD ?? 'devpass',
   database: process.env.DEV_DB_NAME ?? 'gaderia_dev',
-  entities: [Account, Payment, Catalog, Shift, Customer, IntegrationState],
+  entities: [Account, AccountDocument, Payment, Catalog, Shift, Customer, IntegrationState],
   synchronize: true,
   logging: false,
 });
@@ -61,6 +62,7 @@ if (process.argv.includes('--as-prod')) {
   // migrations/001 exercises the real upgrade path.
   await ds.query('DROP TABLE IF EXISTS customer');
   await ds.query('DROP TABLE IF EXISTS integration_state');
+  await ds.query('DROP TABLE IF EXISTS account_document');
   console.log('schema rewound to the current production shape');
 } else {
   console.log('schema created from the entities');
