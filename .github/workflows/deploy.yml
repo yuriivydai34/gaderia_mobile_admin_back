@@ -56,5 +56,11 @@ jobs:
           script: |
             cd ${{ secrets.APP_PATH }}
             npm ci --omit=dev
+            # Read-only: fails the deploy if migrations/ holds a file the
+            # database has not had. Applying it stays a manual step - this
+            # only makes forgetting impossible, which is what actually went
+            # wrong twice before (a column in the model and not in the
+            # database, every query to that table failing with 42703).
+            node scripts/migrate.mjs --check
             pm2 restart ${{ secrets.PM2_APP_NAME }} || pm2 start dist/main.js --name ${{ secrets.PM2_APP_NAME }}
             pm2 save
