@@ -14,8 +14,12 @@ export class Account {
   @Column({ name: 'name_company', type: 'varchar', nullable: true, default: null })
   name_company: string | null;
 
-  @Column({ name: 'code_company', type: 'int', nullable: true, default: null })
-  code_company: number | null;
+  // Text, not int. A company code is an identifier, never a quantity: a
+  // ten-digit ЄДРПОУ does not fit int4 (2983111979 broke registration in the
+  // app server outright), and an integer column silently eats the leading
+  // zeros an eight-digit code often has.
+  @Column({ name: 'code_company', type: 'varchar', nullable: true, default: null })
+  code_company: string | null;
 
   @Column({ type: 'varchar', nullable: true, default: null })
   full_name: string | null;

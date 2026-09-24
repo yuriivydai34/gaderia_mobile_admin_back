@@ -58,6 +58,9 @@ export class AccountService {
             .orWhere('account.region ILIKE :pattern', { pattern })
             .orWhere('account.settlement ILIKE :pattern', { pattern })
             .orWhere('account.address ILIKE :pattern', { pattern })
+            // Kept as a CAST rather than a plain ILIKE: it works whether the
+            // column is still integer or already varchar, so this deploy and
+            // migration 003 can land in either order without breaking search.
             .orWhere('CAST(account.code_company AS TEXT) ILIKE :pattern', { pattern });
         }),
       );
@@ -76,10 +79,7 @@ export class AccountService {
       // The admin form submits empty strings for fields that were cleared.
       const value = raw === '' || raw === undefined ? null : raw;
 
-      if (field === 'code_company') {
-        const parsed = value === null ? null : Number(value);
-        patch[field] = parsed === null || Number.isNaN(parsed) ? null : parsed;
-      } else if (field === 'email') {
+      if (field === 'email') {
         patch[field] = value === null ? null : String(value).trim().toLowerCase();
       } else {
         patch[field] = value === null ? null : String(value);
