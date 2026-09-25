@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Customer } from '../../customer/customer.entity';
@@ -50,7 +50,8 @@ export class WooSyncService {
 
   async sync(options: { full?: boolean } = {}): Promise<SyncResult> {
     if (this.running) {
-      throw new Error('A WooCommerce sync is already running');
+      // 409 rather than a bare Error, which Nest turns into an opaque 500.
+      throw new ConflictException('Синхронізація вже триває');
     }
     this.running = true;
     try {
