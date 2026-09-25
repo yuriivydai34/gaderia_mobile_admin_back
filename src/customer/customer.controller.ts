@@ -14,7 +14,16 @@ export class CustomerController {
     @Query('limit') limit = '10',
     @Query('search') search?: string,
     @Query('source') source?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortOrder') sortOrder?: string,
   ) {
-    return this.customerService.findAll(Number(page), Number(limit), search, source);
+    return this.customerService.findAll(
+      Number(page),
+      Number(limit),
+      search,
+      source,
+      sortBy,
+      sortOrder?.toUpperCase() === 'DESC' ? 'DESC' : 'ASC',
+    );
   }
 }
