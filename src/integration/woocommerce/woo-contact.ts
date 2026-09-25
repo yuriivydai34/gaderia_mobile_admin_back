@@ -232,8 +232,8 @@ export class ContactCollector {
       }
     }
 
-    if (!data.orders.some((o) => o.id === order.id)) {
-      data.orders.push({
+    {
+      const summary: OrderSummary = {
         id: order.id,
         number: clean(order.number),
         date: order.date_created_gmt ?? null,
@@ -242,7 +242,12 @@ export class ContactCollector {
         currency: clean(order.currency),
         payment: clean(order.payment_method_title),
         ttn: metaValue(order, META_TTN),
-      });
+      };
+      // The shop streams orders oldest change first, so an order met again
+      // later in the same run is the fresher copy - its status may have moved.
+      const index = data.orders.findIndex((o) => o.id === order.id);
+      if (index === -1) data.orders.push(summary);
+      else data.orders[index] = summary;
       data.ordersCount = data.orders.length;
       data.totalSpent = Number(
         data.orders.reduce((sum, o) => sum + (Number(o.total) || 0), 0).toFixed(2),
@@ -310,9 +315,12 @@ export function mergeSourceData(stored: Partial<SourceData> | null | undefined, 
     const serialised = JSON.stringify(record);
     if (!merged.delivery.some((d) => JSON.stringify(d) === serialised)) merged.delivery.push(record);
   }
-  for (const order of [...(stored?.orders ?? []), ...incoming.orders]) {
-    if (!merged.orders.some((o) => o.id === order.id)) merged.orders.push(order);
-  }
+  // Incoming wins: an order re-fetched because it changed on the shop carries
+  // its new status, total and TTN. Keeping the stored copy instead would freeze
+  // every order at whatever it looked like on the first import.
+  const byId = new Map<number, OrderSummary>();
+  for (const order of [...(stored?.orders ?? []), ...incoming.orders]) byId.set(order.id, order);
+  merged.orders.push(...byId.values());
 
   merged.orders.sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''));
   merged.ordersCount = merged.orders.length;
