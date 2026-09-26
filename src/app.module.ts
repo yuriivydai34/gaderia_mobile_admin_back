@@ -19,6 +19,10 @@ import { Customer } from './customer/customer.entity';
 import { WooModule } from './integration/woocommerce/woo.module';
 import { IntegrationState } from './integration/woocommerce/integration-state.entity';
 
+import { Favorite } from './favorite/favorite.entity';
+import { OrderReview } from './review/order-review.entity';
+import { ReviewModule } from './review/review.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -30,7 +34,7 @@ import { IntegrationState } from './integration/woocommerce/integration-state.en
       username: process.env.DB_USER ?? 'postgres',
       password: process.env.DB_PASSWORD ?? 'postgres',
       database: process.env.DB_NAME ?? 'your_database_name',
-      entities: [Account, AccountDocument, Payment, Catalog, Shift, Customer, IntegrationState],
+      entities: [Account, AccountDocument, Payment, Catalog, Shift, Customer, IntegrationState, Favorite, OrderReview],
       synchronize: false,
     }),
     AuthModule,
@@ -40,6 +44,7 @@ import { IntegrationState } from './integration/woocommerce/integration-state.en
     ShiftModule,
     CustomerModule,
     WooModule,
+    ReviewModule,
   ],
   controllers: [AppController],
   providers: [AppService],
