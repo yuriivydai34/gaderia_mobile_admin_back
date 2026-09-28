@@ -1,10 +1,35 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Repository } from 'typeorm';
 import { Payment } from './payment.entity';
 import * as XLSX from 'xlsx';
-import { join } from 'path';
-import { existsSync, mkdirSync } from 'fs';
+import { kyivDayRange } from './kyiv-day';
+
+export const ORDER_STATUSES = ['WAITING', 'WORK', 'CANCELED', 'COMPLETED'] as const;
+
+// A page is for looking at, not for dumping the table.
+const MAX_LIMIT = 100;
+
+/**
+ * What the panel may change in an order: the tracking number and the status.
+ * The amount, the items and the owner come from app-server at checkout and
+ * are what LiqPay and 1C were given; rewriting them here would only make the
+ * order disagree with both.
+ */
+export function normalizeOrderUpdate(body: Record<string, unknown>): Partial<Pick<Payment, 'ttn' | 'status'>> {
+  const out: Partial<Pick<Payment, 'ttn' | 'status'>> = {};
+  if ('ttn' in body) {
+    const ttn = String(body.ttn ?? '').trim();
+    out.ttn = ttn === '' ? null : ttn;
+  }
+  if ('status' in body) {
+    if (!ORDER_STATUSES.includes(body.status as (typeof ORDER_STATUSES)[number])) {
+      throw new BadRequestException(`Статус: ${ORDER_STATUSES.join(', ')}`);
+    }
+    out.status = body.status as string;
+  }
+  return out;
+}
 
 @Injectable()
 export class PaymentService {
@@ -16,11 +41,15 @@ export class PaymentService {
   async findAll(page: number, limit: number, sortBy: string, sortOrder: 'ASC' | 'DESC', status?: string): Promise<{ data: Payment[]; total: number; page: number; limit: number }> {
     const columns = this.paymentRepository.metadata.columns.map(c => c.propertyName);
     const orderField = columns.includes(sortBy) ? sortBy : 'updatedAt';
+    // Anything but ASC/DESC used to reach TypeORM and come back as a 500.
+    const direction = String(sortOrder).toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+    page = Number.isInteger(page) && page > 0 ? page : 1;
+    limit = Number.isInteger(limit) && limit > 0 ? Math.min(limit, MAX_LIMIT) : 10;
     const [data, total] = await this.paymentRepository.findAndCount({
       where: status ? { status } : {},
       skip: (page - 1) * limit,
       take: limit,
-      order: { [orderField]: sortOrder },
+      order: { [orderField]: direction },
     });
     return { data, total, page, limit };
   }
@@ -36,8 +65,9 @@ export class PaymentService {
     return this.paymentRepository.save(payment);
   }
 
-  async update(id: number, data: Partial<Payment>): Promise<Payment> {
-    await this.paymentRepository.update(id, data);
+  async update(id: number, body: Record<string, unknown>): Promise<Payment> {
+    const patch = normalizeOrderUpdate(body);
+    if (Object.keys(patch).length > 0) await this.paymentRepository.update(id, patch);
     return this.findOne(id);
   }
 
@@ -46,17 +76,17 @@ export class PaymentService {
     await this.paymentRepository.remove(payment);
   }
 
-  async generateReport(date: string): Promise<string> {
-    const start = new Date(date);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(date);
-    end.setHours(23, 59, 59, 999);
-
-    const startTs = Math.floor(start.getTime() / 1000);
-    const endTs = Math.floor(end.getTime() / 1000);
+  /**
+   * The day's orders as an .xlsx file, returned to the caller rather than
+   * saved: the report holds clients' names, phones and addresses, and files
+   * under the public /static folder could be fetched by anyone who guessed
+   * the name.
+   */
+  async generateReport(date: string): Promise<Buffer> {
+    const { start, end } = kyivDayRange(date);
 
     const payments = await this.paymentRepository.find({
-      where: { createdAt: Between(startTs, endTs) },
+      where: { createdAt: Between(start, end) },
       order: { createdAt: 'DESC' },
     });
 
@@ -137,12 +167,6 @@ export class PaymentService {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Payments');
 
-    const staticDir = join(__dirname, '..', '..', 'static');
-    if (!existsSync(staticDir)) mkdirSync(staticDir, { recursive: true });
-
-    const filename = `payments_${Date.now()}.xlsx`;
-    XLSX.writeFile(wb, join(staticDir, filename));
-
-    return `/static/${filename}`;
+    return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
   }
 }
