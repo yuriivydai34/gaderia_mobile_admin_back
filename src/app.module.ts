@@ -22,6 +22,8 @@ import { IntegrationState } from './integration/woocommerce/integration-state.en
 import { Favorite } from './favorite/favorite.entity';
 import { OrderReview } from './review/order-review.entity';
 import { ReviewModule } from './review/review.module';
+import { PromoCode, PromoRedemption } from './promo/promo-code.entity';
+import { PromoModule } from './promo/promo.module';
 
 @Module({
   imports: [
@@ -34,7 +36,7 @@ import { ReviewModule } from './review/review.module';
       username: process.env.DB_USER ?? 'postgres',
       password: process.env.DB_PASSWORD ?? 'postgres',
       database: process.env.DB_NAME ?? 'your_database_name',
-      entities: [Account, AccountDocument, Payment, Catalog, Shift, Customer, IntegrationState, Favorite, OrderReview],
+      entities: [Account, AccountDocument, Payment, Catalog, Shift, Customer, IntegrationState, Favorite, OrderReview, PromoCode, PromoRedemption],
       synchronize: false,
     }),
     AuthModule,
@@ -45,6 +47,7 @@ import { ReviewModule } from './review/review.module';
     CustomerModule,
     WooModule,
     ReviewModule,
+    PromoModule,
   ],
   controllers: [AppController],
   providers: [AppService],

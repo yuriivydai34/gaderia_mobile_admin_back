@@ -28,6 +28,7 @@ import { Customer } from '../dist/customer/customer.entity.js';
 import { IntegrationState } from '../dist/integration/woocommerce/integration-state.entity.js';
 import { Favorite } from '../dist/favorite/favorite.entity.js';
 import { OrderReview } from '../dist/review/order-review.entity.js';
+import { PromoCode, PromoRedemption } from '../dist/promo/promo-code.entity.js';
 
 try {
   const env = readFileSync(new URL('../.env.dev', import.meta.url), 'utf8');
@@ -52,7 +53,7 @@ const ds = new DataSource({
   username: process.env.DEV_DB_USER ?? 'gaderia',
   password: process.env.DEV_DB_PASSWORD ?? 'devpass',
   database: process.env.DEV_DB_NAME ?? 'gaderia_dev',
-  entities: [Account, AccountDocument, Payment, Catalog, Shift, Customer, IntegrationState, Favorite, OrderReview],
+  entities: [Account, AccountDocument, Payment, Catalog, Shift, Customer, IntegrationState, Favorite, OrderReview, PromoCode, PromoRedemption],
   synchronize: true,
   logging: false,
 });
@@ -66,6 +67,8 @@ if (process.argv.includes('--as-prod')) {
   await ds.query('DROP TABLE IF EXISTS integration_state');
   await ds.query('DROP TABLE IF EXISTS account_document');
   await ds.query('DROP TABLE IF EXISTS order_review');
+  await ds.query('DROP TABLE IF EXISTS promo_redemption');
+  await ds.query('DROP TABLE IF EXISTS promo_code');
   console.log('schema rewound to the current production shape');
 } else {
   console.log('schema created from the entities');
