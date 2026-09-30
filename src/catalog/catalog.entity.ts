@@ -68,6 +68,11 @@ export class Catalog {
   @Column({ type: 'varchar', nullable: true, default: null })
   article: string | null;
 
+  // false: hidden from the app's catalog while it is being prepared
+  // (migrations/008). The app-server listing filters on it.
+  @Column({ name: 'is_active', type: 'boolean', default: true })
+  is_active: boolean;
+
   @CreateDateColumn({ name: 'createdAt', nullable: true })
   createdAt: Date;
 

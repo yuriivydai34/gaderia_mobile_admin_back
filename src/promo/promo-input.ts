@@ -51,6 +51,7 @@ export function normalizePromoInput(
   partial = false,
   current?: PromoCode,
 ): PromoInput {
+  body = body ?? {}; // no JSON body at all: a 400 below, not a TypeError
   const out: PromoInput = {};
   const has = (field: string) => field in body;
 

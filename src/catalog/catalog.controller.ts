@@ -25,14 +25,14 @@ export class CatalogController {
   }
 
   @Post()
-  create(@Body() body: Partial<Catalog>): Promise<Catalog> {
+  create(@Body() body: Record<string, unknown>): Promise<Catalog> {
     return this.catalogService.create(body);
   }
 
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
-    @Body() body: Partial<Catalog>,
+    @Body() body: Record<string, unknown>,
   ): Promise<Catalog> {
     return this.catalogService.update(id, body);
   }

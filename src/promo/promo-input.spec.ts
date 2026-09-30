@@ -29,6 +29,10 @@ describe('normalizePromoInput', () => {
     });
   });
 
+  it('no body at all -> 400, not a 500', () => {
+    expect(() => normalizePromoInput(undefined as unknown as Record<string, unknown>)).toThrow(BadRequestException);
+  });
+
   it('accepts Cyrillic codes', () => {
     expect(normalizePromoInput({ ...valid, code: 'осінь' }).code).toBe('ОСІНЬ');
   });

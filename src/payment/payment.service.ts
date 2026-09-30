@@ -17,6 +17,7 @@ const MAX_LIMIT = 100;
  * order disagree with both.
  */
 export function normalizeOrderUpdate(body: Record<string, unknown>): Partial<Pick<Payment, 'ttn' | 'status'>> {
+  body = body ?? {};
   const out: Partial<Pick<Payment, 'ttn' | 'status'>> = {};
   if ('ttn' in body) {
     const ttn = String(body.ttn ?? '').trim();
