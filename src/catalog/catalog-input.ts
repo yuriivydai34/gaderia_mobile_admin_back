@@ -7,7 +7,8 @@ import { BADGE_COLOR_PATTERN, BADGE_MAX_LENGTH, DEFAULT_BADGE_COLOR } from './pi
 // invisible to the app's filters — the pear vinegar with type_juice "PEAR"
 // and no type_vinegar was exactly that. The panel's choices live in
 // nextjs-app-orders-front/app/lib/product-types.ts and juice-types.ts.
-export const PRODUCT_TYPES = ['JUICE', 'VINEGAR', 'APPLE'] as const;
+// HONEY has one kind for now, so no type field of its own.
+export const PRODUCT_TYPES = ['JUICE', 'VINEGAR', 'APPLE', 'HONEY'] as const;
 export const JUICE_TYPES = [
   'APPLE', 'APPLEGRAPE', 'CARROTAPPLE', 'PEARAPPLE', 'STRAWBERRYAPPLE',
   'APPLEGINGER', 'APPLELEMON', 'APPLEBERRY',

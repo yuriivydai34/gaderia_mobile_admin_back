@@ -73,6 +73,15 @@ describe('normalizeCatalogInput', () => {
     rejects({ ...balsamic, type_product: 'JUICE', type_juice: '' });
   });
 
+  it('honey has one kind: no type field, and any stray one is cleared', () => {
+    expect(
+      normalizeCatalogInput({ ...balsamic, type_product: 'HONEY', type_measurement: 'KG', type_vinegar: 'BALSAMIC' }),
+    ).toMatchObject({ type_product: 'HONEY', type_juice: null, type_vinegar: null, type_apple: null });
+    expect(normalizeCatalogInput({ type_product: 'HONEY' }, true, stored())).toMatchObject({
+      type_product: 'HONEY', type_juice: null, type_vinegar: null, type_apple: null,
+    });
+  });
+
   it('a vinegar needs its kind', () => {
     rejects({ ...balsamic, type_vinegar: '' });
   });
