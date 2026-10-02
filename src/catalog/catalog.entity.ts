@@ -73,6 +73,18 @@ export class Catalog {
   @Column({ name: 'is_active', type: 'boolean', default: true })
   is_active: boolean;
 
+  /** Text of the label drawn onto `picture`, e.g. "Новинка!" (picture-badge.ts). */
+  @Column({ type: 'varchar', nullable: true, default: null })
+  badge: string | null;
+
+  /** The label's background, e.g. #ff2121. */
+  @Column({ name: 'badge_color', type: 'varchar', nullable: true, default: null })
+  badge_color: string | null;
+
+  /** The picture without the badge, kept so the badge can be changed or removed. */
+  @Column({ name: 'picture_original', type: 'varchar', nullable: true, default: null })
+  picture_original: string | null;
+
   @CreateDateColumn({ name: 'createdAt', nullable: true })
   createdAt: Date;
 

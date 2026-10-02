@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { Catalog } from './catalog.entity';
+import { BADGE_COLOR_PATTERN, BADGE_MAX_LENGTH, DEFAULT_BADGE_COLOR } from './picture-badge';
 
 // The codes the mobile app (lib/config/enum.dart) and app-server
 // (enum_declare.js) understand. A product stored with anything else is
@@ -35,7 +36,7 @@ export type CatalogInput = Partial<
     | 'measurement' | 'type_measurement' | 'type_product' | 'type_packaging'
     | 'type_juice' | 'type_vinegar' | 'type_apple'
     | 'shipment_length' | 'shipment_width' | 'shipment_height' | 'shipment_weight'
-    | 'id_sort' | 'is_active'
+    | 'id_sort' | 'is_active' | 'badge' | 'badge_color' | 'picture_original'
   >
 >;
 
@@ -103,6 +104,24 @@ export function normalizeCatalogInput(
   }
   if ('id_sort' in body) out.id_sort = number(body.id_sort, 'Порядок') as number;
   if ('is_active' in body) out.is_active = Boolean(body.is_active);
+  // The website's label: text and colour per product. No text, no label.
+  if ('badge' in body) {
+    out.badge = text(body.badge);
+    if (out.badge && [...out.badge].length > BADGE_MAX_LENGTH) {
+      fail(`Бейдж: не довше ${BADGE_MAX_LENGTH} символів`);
+    }
+  }
+  if ('badge_color' in body) {
+    const color = text(body.badge_color);
+    // The website takes any string and an invalid one turns its label
+    // transparent; here it is refused instead.
+    if (color && !BADGE_COLOR_PATTERN.test(color)) fail('Колір бейджа: вкажіть у вигляді #ff2121');
+    out.badge_color = color?.toLowerCase() ?? null;
+  }
+  if ('badge' in out) {
+    if (!out.badge) out.badge_color = null;
+    else if (!out.badge_color) out.badge_color = current?.badge_color ?? DEFAULT_BADGE_COLOR;
+  }
 
   // The type field that belongs to the product's kind; the others are
   // cleared whenever the kind or a type field is sent, so a vinegar cannot
