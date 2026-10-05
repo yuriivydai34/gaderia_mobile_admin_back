@@ -29,6 +29,12 @@ describe('normalizePromoInput', () => {
     });
   });
 
+  it('auto_apply is read as a flag and left out when not sent', () => {
+    expect(normalizePromoInput({ ...valid, auto_apply: true }).auto_apply).toBe(true);
+    expect(normalizePromoInput({ ...valid, auto_apply: 0 }).auto_apply).toBe(false);
+    expect('auto_apply' in normalizePromoInput({ ...valid })).toBe(false);
+  });
+
   it('no body at all -> 400, not a 500', () => {
     expect(() => normalizePromoInput(undefined as unknown as Record<string, unknown>)).toThrow(BadRequestException);
   });

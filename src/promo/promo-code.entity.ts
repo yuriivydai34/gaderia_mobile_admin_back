@@ -56,6 +56,10 @@ export class PromoCode {
   @Column({ name: 'is_active', type: 'boolean', default: true })
   is_active: boolean;
 
+  // Applied by the app at checkout without being typed (welcome discounts).
+  @Column({ name: 'auto_apply', type: 'boolean', default: false })
+  auto_apply: boolean;
+
   @CreateDateColumn({ name: 'createdAt', nullable: true })
   createdAt: Date;
 

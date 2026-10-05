@@ -14,6 +14,7 @@ export type PromoInput = Partial<
     | 'first_order_only'
     | 'max_account_age_days'
     | 'is_active'
+    | 'auto_apply'
   >
 >;
 
@@ -89,6 +90,7 @@ export function normalizePromoInput(
   if (has('ends_at')) out.ends_at = date(body.ends_at, 'Кінець дії');
   if (has('first_order_only')) out.first_order_only = Boolean(body.first_order_only);
   if (has('is_active')) out.is_active = Boolean(body.is_active);
+  if (has('auto_apply')) out.auto_apply = Boolean(body.auto_apply);
 
   // Rules across fields, against what the row will look like after the save.
   const type = out.discount_type ?? current?.discount_type;
