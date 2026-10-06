@@ -69,4 +69,9 @@ export class Account {
   @Column({ name: 'type_account_subject', type: 'varchar', nullable: true, default: null })
   type_account_subject: string | null;
 
+
+  // Queued for deletion by the client in the app; app-server erases the
+  // personal data some hours later and clears this. NULL — not queued.
+  @Column({ name: 'deletion_requested_at', type: 'timestamptz', nullable: true, default: null })
+  deletion_requested_at: Date | null;
 }
