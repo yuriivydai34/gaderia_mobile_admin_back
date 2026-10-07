@@ -37,7 +37,7 @@ export type CatalogInput = Partial<
     | 'measurement' | 'type_measurement' | 'type_product' | 'type_packaging'
     | 'type_juice' | 'type_vinegar' | 'type_apple'
     | 'shipment_length' | 'shipment_width' | 'shipment_height' | 'shipment_weight'
-    | 'id_sort' | 'is_active' | 'badge' | 'badge_color' | 'picture_original'
+    | 'id_sort' | 'is_active' | 'is_new' | 'badge' | 'badge_color' | 'picture_original'
   >
 >;
 
@@ -105,6 +105,7 @@ export function normalizeCatalogInput(
   }
   if ('id_sort' in body) out.id_sort = number(body.id_sort, 'Порядок') as number;
   if ('is_active' in body) out.is_active = Boolean(body.is_active);
+  if ('is_new' in body) out.is_new = Boolean(body.is_new);
   // The website's label: text and colour per product. No text, no label.
   if ('badge' in body) {
     out.badge = text(body.badge);

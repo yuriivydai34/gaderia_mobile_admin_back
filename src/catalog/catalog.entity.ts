@@ -73,6 +73,10 @@ export class Catalog {
   @Column({ name: 'is_active', type: 'boolean', default: true })
   is_active: boolean;
 
+  /** Shown in the app's "Новинки" carousel (migrations/013), while it is on. */
+  @Column({ name: 'is_new', type: 'boolean', default: false })
+  is_new: boolean;
+
   /** Text of the label drawn onto `picture`, e.g. "Новинка!" (picture-badge.ts). */
   @Column({ type: 'varchar', nullable: true, default: null })
   badge: string | null;

@@ -25,6 +25,8 @@ import { ReviewModule } from './review/review.module';
 import { PromoCode, PromoRedemption } from './promo/promo-code.entity';
 import { HealthModule } from './health/health.module';
 import { PromoModule } from './promo/promo.module';
+import { AppSetting } from './app-setting/app-setting.entity';
+import { AppSettingModule } from './app-setting/app-setting.module';
 
 @Module({
   imports: [
@@ -37,7 +39,7 @@ import { PromoModule } from './promo/promo.module';
       username: process.env.DB_USER ?? 'postgres',
       password: process.env.DB_PASSWORD ?? 'postgres',
       database: process.env.DB_NAME ?? 'your_database_name',
-      entities: [Account, AccountDocument, Payment, Catalog, Shift, Customer, IntegrationState, Favorite, OrderReview, PromoCode, PromoRedemption],
+      entities: [Account, AccountDocument, Payment, Catalog, Shift, Customer, IntegrationState, Favorite, OrderReview, PromoCode, PromoRedemption, AppSetting],
       synchronize: false,
     }),
     AuthModule,
@@ -50,6 +52,7 @@ import { PromoModule } from './promo/promo.module';
     ReviewModule,
     PromoModule,
     HealthModule,
+    AppSettingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

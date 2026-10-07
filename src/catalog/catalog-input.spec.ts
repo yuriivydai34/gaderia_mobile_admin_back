@@ -140,6 +140,11 @@ describe('normalizeCatalogInput', () => {
       expect(normalizeCatalogInput({ is_active: false }, true, stored())).toEqual({ is_active: false });
     });
 
+    it('marking a product new touches only is_new', () => {
+      expect(normalizeCatalogInput({ is_new: true }, true, stored())).toEqual({ is_new: true });
+      expect(normalizeCatalogInput({ is_new: false }, true, stored())).toEqual({ is_new: false });
+    });
+
     it('fields outside the product are ignored', () => {
       expect(normalizeCatalogInput({ id: 1, createdAt: 'x', header: 'Нова назва' }, true, stored())).toEqual({
         header: 'Нова назва',
