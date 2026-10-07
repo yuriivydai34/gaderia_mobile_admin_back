@@ -82,6 +82,13 @@ describe('normalizeCatalogInput', () => {
     });
   });
 
+  // A jar of honey weighs 0.35 kg: sizes and weight are not whole tenths.
+  it('keeps weight, sizes and volume with two or three decimals', () => {
+    expect(
+      normalizeCatalogInput({ ...balsamic, shipment_weight: '0.35', shipment_height: '8.25', measurement: '0.375' }),
+    ).toMatchObject({ shipment_weight: 0.35, shipment_height: 8.25, measurement: 0.375 });
+  });
+
   it('a vinegar needs its kind', () => {
     rejects({ ...balsamic, type_vinegar: '' });
   });
