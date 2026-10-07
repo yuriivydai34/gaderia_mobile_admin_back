@@ -23,6 +23,7 @@ import { Favorite } from './favorite/favorite.entity';
 import { OrderReview } from './review/order-review.entity';
 import { ReviewModule } from './review/review.module';
 import { PromoCode, PromoRedemption } from './promo/promo-code.entity';
+import { HealthModule } from './health/health.module';
 import { PromoModule } from './promo/promo.module';
 
 @Module({
@@ -48,6 +49,7 @@ import { PromoModule } from './promo/promo.module';
     WooModule,
     ReviewModule,
     PromoModule,
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
