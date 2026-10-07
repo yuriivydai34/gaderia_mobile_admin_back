@@ -19,7 +19,9 @@ export class HealthController {
   @Header('Cache-Control', 'no-store')
   async check(@Res({ passthrough: true }) res: Response) {
     const result = await this.health.check();
-    res.status(result.status === 'down' ? HttpStatus.SERVICE_UNAVAILABLE : HttpStatus.OK);
+    res.status(
+      result.status === 'down' ? HttpStatus.SERVICE_UNAVAILABLE : HttpStatus.OK,
+    );
     return result;
   }
 
@@ -31,7 +33,9 @@ export class HealthController {
   @Header('Cache-Control', 'no-store')
   async live(@Res({ passthrough: true }) res: Response) {
     const result = await this.health.check();
-    res.status(result.status === 'down' ? HttpStatus.SERVICE_UNAVAILABLE : HttpStatus.OK);
+    res.status(
+      result.status === 'down' ? HttpStatus.SERVICE_UNAVAILABLE : HttpStatus.OK,
+    );
     res.type('text/plain');
     return result.status === 'down' ? '0' : '1';
   }

@@ -15,7 +15,11 @@ export type HealthCheck = {
   uptimeSeconds: number;
   checks: {
     database: { ok: boolean; latencyMs: number | null; error?: string };
-    shopSync: { ok: boolean; lastRunAt: string | null; ageMinutes: number | null };
+    shopSync: {
+      ok: boolean;
+      lastRunAt: string | null;
+      ageMinutes: number | null;
+    };
   };
 };
 
@@ -54,7 +58,10 @@ export class HealthService {
       await Promise.race([
         this.dataSource.query('SELECT 1'),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error(`no answer in ${DB_TIMEOUT_MS}ms`)), DB_TIMEOUT_MS),
+          setTimeout(
+            () => reject(new Error(`no answer in ${DB_TIMEOUT_MS}ms`)),
+            DB_TIMEOUT_MS,
+          ),
         ),
       ]);
       return { ok: true, latencyMs: Date.now() - started };
@@ -80,7 +87,9 @@ export class HealthService {
         return { ok: true, lastRunAt: null, ageMinutes: null };
       }
 
-      const ageMinutes = Math.round((Date.now() - new Date(last).getTime()) / 60000);
+      const ageMinutes = Math.round(
+        (Date.now() - new Date(last).getTime()) / 60000,
+      );
       return {
         ok: ageMinutes <= SYNC_STALE_AFTER_MINUTES,
         lastRunAt: new Date(last).toISOString(),
