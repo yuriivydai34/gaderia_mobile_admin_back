@@ -7,8 +7,9 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 
 // Paths reachable without an admin token, on purpose. Anything else found
 // below must be behind JwtAuthGuard + AdminGuard: this panel sees every
-// client, order and document.
-const PUBLIC = ['', 'auth'];
+// client, order and document. health is for a monitoring agent, which has no
+// token, and answers with states and timings only.
+const PUBLIC = ['', 'auth', 'health'];
 
 function controllerFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
