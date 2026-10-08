@@ -8,6 +8,7 @@ import { ContactCollector, SourceData, WooContact, mergeSourceData } from './woo
 
 export const WOO_SOURCE = 'woocommerce';
 const CURSOR_KEY = 'woocommerce.orders.modified_after';
+const LAST_RUN_KEY = 'woocommerce.last_run_at';
 
 export type SyncResult = {
   ordersScanned: number;
@@ -97,6 +98,9 @@ export class WooSyncService {
       if (cursor) {
         await this.state.save({ key: CURSOR_KEY, value: cursor });
       }
+      // The cursor stays put while the shop is quiet, and saving an unchanged
+      // value does not bump updatedAt - so the health check needs its own row.
+      await this.state.save({ key: LAST_RUN_KEY, value: new Date().toISOString() });
 
       const result: SyncResult = {
         ordersScanned,
