@@ -92,3 +92,12 @@ describe('bot settings', () => {
     expect(readStoredValue('bot_sale_text', 42)).toBeUndefined();
   });
 });
+
+describe('promo code field', () => {
+  // App 1.3.2 hides the field in code; from 1.3.3 the panel decides.
+  it('is off until switched on, and takes only a boolean', () => {
+    expect(defaultAppSettings().promo_field_enabled).toBe(false);
+    expect(normalizeAppSettingsInput({ promo_field_enabled: true })).toEqual({ promo_field_enabled: true });
+    expect(() => normalizeAppSettingsInput({ promo_field_enabled: 'true' })).toThrow(BadRequestException);
+  });
+});

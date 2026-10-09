@@ -9,6 +9,9 @@ export const APP_SETTINGS = {
   min_app_version: { kind: 'version', default: null },
   // An app older than this asks once to update and can be dismissed.
   latest_app_version: { kind: 'version', default: null },
+  // The promo code field at checkout (app 1.3.3+; 1.3.2 has it hidden in
+  // code). Off: only automatic codes apply.
+  promo_field_enabled: { kind: 'boolean', default: false },
 
   // The Telegram bot (gaderia_bot, services/settings.py). Empty means the
   // bot's own value: the text in texts.py, the manager and hours in its .env.
@@ -27,6 +30,7 @@ export type AppSettings = {
   new_carousel_enabled: boolean;
   min_app_version: string | null;
   latest_app_version: string | null;
+  promo_field_enabled: boolean;
   bot_sale_text: string | null;
   bot_manager_username: string | null;
   bot_manager_work_hours: string | null;
@@ -45,6 +49,7 @@ const LABEL: Record<AppSettingKey, string> = {
   new_carousel_enabled: 'Карусель «Новинки»',
   min_app_version: 'Мінімальна версія',
   latest_app_version: 'Рекомендована версія',
+  promo_field_enabled: 'Поле «Промокод» у застосунку',
   bot_sale_text: 'Текст «Акції»',
   bot_manager_username: 'Менеджер у Telegram',
   bot_manager_work_hours: 'Графік менеджера',
