@@ -12,11 +12,14 @@ const LAST_RUN_KEY = 'woocommerce.last_run_at';
 // The reason the last run failed, cleared by the next one that succeeds. Kept
 // in the database so the panel can show it; the log alone was read by nobody.
 const LAST_ERROR_KEY = 'woocommerce.last_error';
+// What the last successful run did, hourly or by hand, for the Settings page.
+const LAST_RESULT_KEY = 'woocommerce.last_result';
 
 export type SyncStatus = {
   running: boolean;
   lastRunAt: string | null;
   lastError: { at: string; message: string } | null;
+  lastResult: SyncResult | null;
   imported: number;
 };
 
@@ -68,6 +71,7 @@ export class WooSyncService {
     try {
       const result = await this.run(options);
       await this.state.delete({ key: LAST_ERROR_KEY });
+      await this.state.save({ key: LAST_RESULT_KEY, value: JSON.stringify(result) });
       return result;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -89,6 +93,12 @@ export class WooSyncService {
     } catch {
       lastError = { at: '', message: value(LAST_ERROR_KEY) as string };
     }
+    let lastResult: SyncResult | null = null;
+    try {
+      lastResult = value(LAST_RESULT_KEY) ? JSON.parse(value(LAST_RESULT_KEY) as string) : null;
+    } catch {
+      lastResult = null;
+    }
     // Instances that synced before last_run_at existed only have the cursor's
     // own timestamp; /health falls back to it the same way.
     const cursorRow = rows.find((r) => r.key === CURSOR_KEY);
@@ -96,6 +106,7 @@ export class WooSyncService {
       running: this.running,
       lastRunAt: value(LAST_RUN_KEY) ?? (cursorRow ? new Date(cursorRow.updatedAt).toISOString() : null),
       lastError,
+      lastResult,
       imported: await this.importedCount(),
     };
   }

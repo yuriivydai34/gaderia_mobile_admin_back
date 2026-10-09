@@ -60,6 +60,8 @@ describe('WooSyncService', () => {
 
     expect(state.delete).toHaveBeenCalledWith({ key: 'woocommerce.last_error' });
     expect(state.save).toHaveBeenCalledWith(expect.objectContaining({ key: 'woocommerce.last_run_at' }));
+    const result = state.save.mock.calls.map(([r]) => r).find((r) => r.key === 'woocommerce.last_result');
+    expect(JSON.parse(result.value)).toMatchObject({ ordersScanned: 0, created: 0, updated: 0 });
   });
 
   it('status reads the last run and the last error', async () => {
@@ -72,6 +74,7 @@ describe('WooSyncService', () => {
       running: false,
       lastRunAt: '2026-10-09T12:00:00.422Z',
       lastError: { at: '2026-10-07T11:00:00Z', message: 'timeout' },
+      lastResult: null,
       imported: 9191,
     });
   });
