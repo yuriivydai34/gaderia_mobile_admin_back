@@ -27,6 +27,7 @@ import { HealthModule } from './health/health.module';
 import { PromoModule } from './promo/promo.module';
 import { AppSetting } from './app-setting/app-setting.entity';
 import { AppSettingModule } from './app-setting/app-setting.module';
+import { SystemModule } from './system/system.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { AppSettingModule } from './app-setting/app-setting.module';
     PromoModule,
     HealthModule,
     AppSettingModule,
+    SystemModule,
   ],
   controllers: [AppController],
   providers: [AppService],

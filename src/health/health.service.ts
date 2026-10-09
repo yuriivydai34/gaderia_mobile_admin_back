@@ -77,8 +77,11 @@ export class HealthService {
   private async checkShopSync(): Promise<HealthCheck['checks']['shopSync']> {
     try {
       const rows: { updatedAt: Date }[] = await this.dataSource.query(
+        // Only rows a successful run writes. woocommerce.last_error is written
+        // by a failed one, and counting it would call a failing sync fresh.
         `SELECT "updatedAt" FROM integration_state
-         WHERE key LIKE 'woocommerce%' ORDER BY "updatedAt" DESC LIMIT 1`,
+         WHERE key IN ('woocommerce.last_run_at', 'woocommerce.orders.modified_after')
+         ORDER BY "updatedAt" DESC LIMIT 1`,
       );
       const last = rows[0]?.updatedAt;
       if (!last) {

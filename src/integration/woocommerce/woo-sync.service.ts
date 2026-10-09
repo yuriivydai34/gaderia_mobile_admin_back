@@ -9,6 +9,16 @@ import { ContactCollector, SourceData, WooContact, mergeSourceData } from './woo
 export const WOO_SOURCE = 'woocommerce';
 const CURSOR_KEY = 'woocommerce.orders.modified_after';
 const LAST_RUN_KEY = 'woocommerce.last_run_at';
+// The reason the last run failed, cleared by the next one that succeeds. Kept
+// in the database so the panel can show it; the log alone was read by nobody.
+const LAST_ERROR_KEY = 'woocommerce.last_error';
+
+export type SyncStatus = {
+  running: boolean;
+  lastRunAt: string | null;
+  lastError: { at: string; message: string } | null;
+  imported: number;
+};
 
 export type SyncResult = {
   ordersScanned: number;
@@ -56,66 +66,98 @@ export class WooSyncService {
     }
     this.running = true;
     try {
-      const since = options.full ? null : await this.getCursor();
-      this.logger.log(since ? `syncing orders modified after ${since}` : 'syncing all orders');
-
-      // Streamed page by page: the shop holds ~17k orders at ~6 KB each, so
-      // buffering the lot would cost about 100 MB of heap.
-      const collector = new ContactCollector();
-      let ordersScanned = 0;
-      let newest = '';
-      let strategy: 'modified' | 'created' = 'modified';
-
-      for await (const batch of this.woo.streamOrders(since)) {
-        strategy = batch.strategy;
-        collector.addAll(batch.orders);
-        ordersScanned += batch.orders.length;
-        for (const order of batch.orders) {
-          // Must match whatever the shop actually filtered on, or the next run
-          // asks for a window that does not line up.
-          const at = (strategy === 'modified'
-            ? order.date_modified_gmt ?? order.date_created_gmt
-            : order.date_created_gmt ?? order.date_modified_gmt) ?? '';
-          if (at > newest) newest = at;
-        }
-      }
-
-      const contacts = collector.values();
-      let created = 0;
-      let updated = 0;
-      let linkedToExisting = 0;
-
-      for (const contact of contacts) {
-        const outcome = await this.upsert(contact);
-        if (outcome === 'created') created++;
-        else if (outcome === 'updated') updated++;
-        else linkedToExisting++;
-      }
-
-      // Advance only on success, and only as far as the newest order actually
-      // seen - a run that fails halfway is simply repeated next time.
-      const cursor = newest ? rewindOneSecond(newest) : since;
-      if (cursor) {
-        await this.state.save({ key: CURSOR_KEY, value: cursor });
-      }
-      // The cursor stays put while the shop is quiet, and saving an unchanged
-      // value does not bump updatedAt - so the health check needs its own row.
-      await this.state.save({ key: LAST_RUN_KEY, value: new Date().toISOString() });
-
-      const result: SyncResult = {
-        ordersScanned,
-        contactsFound: contacts.length,
-        created,
-        updated,
-        linkedToExisting,
-        cursor: cursor ?? null,
-        strategy,
-      };
-      this.logger.log(`sync finished: ${JSON.stringify(result)}`);
+      const result = await this.run(options);
+      await this.state.delete({ key: LAST_ERROR_KEY });
       return result;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await this.state
+        .save({ key: LAST_ERROR_KEY, value: JSON.stringify({ at: new Date().toISOString(), message }) })
+        .catch(() => undefined);
+      throw error;
     } finally {
       this.running = false;
     }
+  }
+
+  async status(): Promise<SyncStatus> {
+    const rows = await this.state.find();
+    const value = (key: string) => rows.find((r) => r.key === key)?.value ?? null;
+    let lastError: SyncStatus['lastError'] = null;
+    try {
+      lastError = value(LAST_ERROR_KEY) ? JSON.parse(value(LAST_ERROR_KEY) as string) : null;
+    } catch {
+      lastError = { at: '', message: value(LAST_ERROR_KEY) as string };
+    }
+    // Instances that synced before last_run_at existed only have the cursor's
+    // own timestamp; /health falls back to it the same way.
+    const cursorRow = rows.find((r) => r.key === CURSOR_KEY);
+    return {
+      running: this.running,
+      lastRunAt: value(LAST_RUN_KEY) ?? (cursorRow ? new Date(cursorRow.updatedAt).toISOString() : null),
+      lastError,
+      imported: await this.importedCount(),
+    };
+  }
+
+  private async run(options: { full?: boolean }): Promise<SyncResult> {
+    const since = options.full ? null : await this.getCursor();
+    this.logger.log(since ? `syncing orders modified after ${since}` : 'syncing all orders');
+
+    // Streamed page by page: the shop holds ~17k orders at ~6 KB each, so
+    // buffering the lot would cost about 100 MB of heap.
+    const collector = new ContactCollector();
+    let ordersScanned = 0;
+    let newest = '';
+    let strategy: 'modified' | 'created' = 'modified';
+
+    for await (const batch of this.woo.streamOrders(since)) {
+      strategy = batch.strategy;
+      collector.addAll(batch.orders);
+      ordersScanned += batch.orders.length;
+      for (const order of batch.orders) {
+        // Must match whatever the shop actually filtered on, or the next run
+        // asks for a window that does not line up.
+        const at = (strategy === 'modified'
+          ? order.date_modified_gmt ?? order.date_created_gmt
+          : order.date_created_gmt ?? order.date_modified_gmt) ?? '';
+        if (at > newest) newest = at;
+      }
+    }
+
+    const contacts = collector.values();
+    let created = 0;
+    let updated = 0;
+    let linkedToExisting = 0;
+
+    for (const contact of contacts) {
+      const outcome = await this.upsert(contact);
+      if (outcome === 'created') created++;
+      else if (outcome === 'updated') updated++;
+      else linkedToExisting++;
+    }
+
+    // Advance only on success, and only as far as the newest order actually
+    // seen - a run that fails halfway is simply repeated next time.
+    const cursor = newest ? rewindOneSecond(newest) : since;
+    if (cursor) {
+      await this.state.save({ key: CURSOR_KEY, value: cursor });
+    }
+    // The cursor stays put while the shop is quiet, and saving an unchanged
+    // value does not bump updatedAt - so the health check needs its own row.
+    await this.state.save({ key: LAST_RUN_KEY, value: new Date().toISOString() });
+
+    const result: SyncResult = {
+      ordersScanned,
+      contactsFound: contacts.length,
+      created,
+      updated,
+      linkedToExisting,
+      cursor: cursor ?? null,
+      strategy,
+    };
+    this.logger.log(`sync finished: ${JSON.stringify(result)}`);
+    return result;
   }
 
   /**

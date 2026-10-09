@@ -12,6 +12,11 @@ export function apiBase(raw: string): string {
 
 const PER_PAGE = 100;
 
+// One page of orders. Without a limit a request the shop never answers hung the
+// sync for good: it stayed "running", every hourly run after it skipped, and
+// buyers stopped updating until the process restarted (seen 07.10.2026).
+const PAGE_TIMEOUT_MS = 60_000;
+
 export type Strategy = 'modified' | 'created';
 export type Batch = { orders: WooOrder[]; strategy: Strategy; page: number; totalPages: number };
 
@@ -103,6 +108,14 @@ export class WooClient {
 
     const res = await fetch(endpoint.toString(), {
       headers: { Authorization: `Basic ${auth}`, Accept: 'application/json' },
+      signal: AbortSignal.timeout(PAGE_TIMEOUT_MS),
+    }).catch((error: unknown) => {
+      if ((error as Error)?.name === 'TimeoutError') {
+        throw new ServiceUnavailableException(
+          `WooCommerce did not answer page ${page} within ${PAGE_TIMEOUT_MS / 1000} s`,
+        );
+      }
+      throw error;
     });
 
     if (!res.ok) {
