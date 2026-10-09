@@ -57,3 +57,38 @@ describe('readStoredValue', () => {
     expect(readStoredValue('unknown', true)).toBeUndefined();
   });
 });
+
+describe('bot settings', () => {
+  it('keeps the sale text with its line breaks, trimmed; empty clears it', () => {
+    expect(normalizeAppSettingsInput({ bot_sale_text: '  🔥 <b>-10%</b>\r\nна соки  ' })).toEqual({
+      bot_sale_text: '🔥 <b>-10%</b>\nна соки',
+    });
+    expect(normalizeAppSettingsInput({ bot_sale_text: '   ' })).toEqual({ bot_sale_text: null });
+  });
+
+  it('refuses a sale text longer than a Telegram message can carry', () => {
+    expect(() => normalizeAppSettingsInput({ bot_sale_text: 'x'.repeat(3501) })).toThrow(/3500/);
+  });
+
+  it('takes the manager as @name, name or a t.me link, and stores just the name', () => {
+    for (const given of ['@Olya_Gaderia', 'Olya_Gaderia', 'https://t.me/Olya_Gaderia']) {
+      expect(normalizeAppSettingsInput({ bot_manager_username: given })).toEqual({ bot_manager_username: 'Olya_Gaderia' });
+    }
+  });
+
+  it.each(['Оля', 'ab', 'olya gaderia', '1olya', 'x'.repeat(33)])('refuses %p as a Telegram name', (given) => {
+    expect(() => normalizeAppSettingsInput({ bot_manager_username: given })).toThrow(BadRequestException);
+  });
+
+  it('notifications are on until switched off', () => {
+    expect(defaultAppSettings().bot_notify_enabled).toBe(true);
+    expect(normalizeAppSettingsInput({ bot_notify_enabled: false })).toEqual({ bot_notify_enabled: false });
+  });
+
+  it('reads back only values of the right kind', () => {
+    expect(readStoredValue('bot_manager_username', 'Olya_Gaderia')).toBe('Olya_Gaderia');
+    expect(readStoredValue('bot_manager_username', '@bad name')).toBeUndefined();
+    expect(readStoredValue('bot_manager_work_hours', 'Пн–Пт 9–18')).toBe('Пн–Пт 9–18');
+    expect(readStoredValue('bot_sale_text', 42)).toBeUndefined();
+  });
+});
