@@ -96,6 +96,12 @@ export class PromoRedemption {
   @Column({ name: 'discount_amount', type: 'numeric', precision: 10, scale: 2, transformer: numeric })
   discount_amount: number;
 
+  // Set when the website's order was cancelled or refunded (app-server
+  // POST /site/promo/release, migrations/014). A released use frees its
+  // place in the limit; null means it is active.
+  @Column({ name: 'released_at', type: 'timestamptz', nullable: true, default: null })
+  released_at: Date | null;
+
   @CreateDateColumn({ name: 'createdAt', nullable: true })
   createdAt: Date;
 

@@ -8,7 +8,8 @@ import { isDuplicateEmail as isUniqueViolation } from '../account/account.servic
 export type PromoStats = {
   // Uses that count towards the limit: the order is not cancelled.
   used: number;
-  // Uses whose order was cancelled; shown, but they freed their place.
+  // Uses whose order was cancelled or released on the site; shown, but they
+  // freed their place.
   cancelled: number;
   // Hryvnias taken off, and the goods total those orders had before it.
   discount_total: number;
@@ -23,6 +24,7 @@ export type RedemptionRow = {
   source: string;
   payment_id: number | null;
   external_order_id: string | null;
+  released_at: Date | null;
   order_amount: number;
   discount_amount: number;
   createdAt: Date;
@@ -35,9 +37,10 @@ export type RedemptionRow = {
   payment_amount: number | null;
 };
 
-// A use holds its place in the limit unless its order was cancelled. Site
-// orders (no payment_id) always count. app-server counts the same way.
-const COUNTS = `(r.payment_id IS NULL OR p.status IS DISTINCT FROM 'CANCELED')`;
+// A use holds its place in the limit unless its app order was cancelled or
+// the site released it (its order there was cancelled or refunded). Must match
+// USED_SQL in app-server components/promo/promo.js, which enforces the limit.
+export const COUNTS = `(r.released_at IS NULL AND (r.payment_id IS NULL OR p.status IS DISTINCT FROM 'CANCELED'))`;
 
 const STATS_SQL = `
   SELECT r.promo_code_id,
@@ -96,7 +99,7 @@ export class PromoService {
       [id],
     );
     const rows: RedemptionRow[] = await this.redemptionRepository.query(
-      `SELECT r.id, r.source, r.payment_id, r.external_order_id,
+      `SELECT r.id, r.source, r.payment_id, r.external_order_id, r.released_at,
               r.order_amount, r.discount_amount, r."createdAt",
               r.account_id, a.email, a.full_name,
               p.order_id, p.status, p.amount AS payment_amount
