@@ -29,6 +29,7 @@ import { AppSetting } from './app-setting/app-setting.entity';
 import { AppSettingModule } from './app-setting/app-setting.module';
 import { SystemModule } from './system/system.module';
 import { BonusLedger } from './bonus/bonus-ledger.entity';
+import { BonusModule } from './bonus/bonus.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { BonusLedger } from './bonus/bonus-ledger.entity';
     HealthModule,
     AppSettingModule,
     SystemModule,
+    BonusModule,
   ],
   controllers: [AppController],
   providers: [AppService],
