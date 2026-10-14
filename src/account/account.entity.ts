@@ -74,4 +74,12 @@ export class Account {
   // personal data some hours later and clears this. NULL — not queued.
   @Column({ name: 'deletion_requested_at', type: 'timestamptz', nullable: true, default: null })
   deletion_requested_at: Date | null;
+
+  // The app version this account last used, as 1.3.3, and when app-server
+  // saw it (migrations/016). Null until a signed-in request carries it.
+  @Column({ name: 'app_version', type: 'varchar', nullable: true, default: null })
+  app_version: string | null;
+
+  @Column({ name: 'app_version_seen_at', type: 'timestamptz', nullable: true, default: null })
+  app_version_seen_at: Date | null;
 }

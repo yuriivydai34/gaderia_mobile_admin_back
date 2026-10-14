@@ -8,6 +8,7 @@ const PUBLIC_FIELDS = [
   'name_company', 'code_company', 'is_email_confirmation',
   'name_bank', 'number_bank', 'region', 'settlement',
   'address', 'type_account_subject', 'createdAt', 'updatedAt',
+  'app_version', 'app_version_seen_at',
 ] as const;
 
 // Only these may be written through the admin panel: password, role escalation
