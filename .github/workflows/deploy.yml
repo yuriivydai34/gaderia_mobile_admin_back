@@ -59,11 +59,11 @@ jobs:
             set -e
             cd ${{ secrets.APP_PATH }}
             npm ci --omit=dev
-            # Read-only: fails the deploy if migrations/ holds a file the
-            # database has not had. Applying it stays a manual step - this
-            # only makes forgetting impossible, which is what actually went
-            # wrong twice before (a column in the model and not in the
-            # database, every query to that table failing with 42703).
-            node scripts/migrate.mjs --check
+            # Applies the migrations the database has not had yet, before the
+            # restart, after saving the schema to schema-snapshots/. Each file
+            # is one transaction and safe to re-run: a failing one rolls back,
+            # set -e stops here, and the previous version keeps running.
+            # Until 14.10.2026 this only checked and the apply was manual.
+            node scripts/migrate.mjs --remote --snapshot
             pm2 restart ${{ secrets.PM2_APP_NAME }} || pm2 start dist/main.js --name ${{ secrets.PM2_APP_NAME }}
             pm2 save

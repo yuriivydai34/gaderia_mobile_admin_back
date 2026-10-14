@@ -4,6 +4,15 @@
  *   node scripts/migrate.mjs             apply everything not yet applied
  *   node scripts/migrate.mjs --check     report what is pending, change nothing
  *   node scripts/migrate.mjs --baseline  record every file as applied, run none
+ *   node scripts/migrate.mjs --snapshot  before applying, save the schema to
+ *                                        schema-snapshots/ (pg_dump --schema-only)
+ *
+ * The deploy runs it with --remote --snapshot (since 14.10.2026): new
+ * migrations go on by themselves before the restart, and a failing one stops
+ * the deploy with the old version still running. Before that the deploy only
+ * checked and someone applied by hand; that step protected nothing by the
+ * time every file here was transactional and re-runnable, and it was done six
+ * times on 14.10 alone.
  *
  * A remote database needs --remote as well. .env in this repository points
  * straight at production, so without that guard any run from a laptop reaches
@@ -38,12 +47,15 @@
  * Reads DB_* from .env, the same names src/app.module.ts uses.
  */
 
-import { readFileSync, readdirSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import pg from 'pg';
 
 const checkOnly = process.argv.includes('--check');
 const baseline = process.argv.includes('--baseline');
 const allowRemote = process.argv.includes('--remote');
+const snapshot = process.argv.includes('--snapshot');
+const SNAPSHOTS_KEPT = 30;
 
 try {
   const env = readFileSync(new URL('../.env', import.meta.url), 'utf8');
@@ -146,6 +158,29 @@ if (checkOnly) {
 }
 
 console.log('');
+
+// What the schema looked like before these migrations, for reading or for
+// putting a column back by hand. Schema only: quick, and no client data in a
+// file. Not having pg_dump is a warning, not a reason to stop a deploy.
+if (snapshot) {
+  const dir = new URL('../schema-snapshots/', import.meta.url);
+  mkdirSync(dir, { recursive: true });
+  const name = `schema-${new Date().toISOString().replace(/[:.]/g, '-')}-before-${pending[0].replace(/\.sql$/, '')}.sql`;
+  const dump = spawnSync('pg_dump', ['--schema-only', '--no-owner', '-h', host, '-p', String(Number(process.env.DB_PORT) || 5432), '-U', process.env.DB_USER ?? 'postgres', process.env.DB_NAME ?? ''], {
+    env: { ...process.env, PGPASSWORD: process.env.DB_PASSWORD ?? '' },
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  if (dump.status === 0) {
+    writeFileSync(new URL(name, dir), dump.stdout);
+    console.log(`schema saved to schema-snapshots/${name}`);
+    const old = readdirSync(dir).filter((f) => f.endsWith('.sql')).sort().slice(0, -SNAPSHOTS_KEPT);
+    for (const f of old) rmSync(new URL(f, dir));
+  } else {
+    console.warn(`schema snapshot skipped: ${dump.error?.message ?? dump.stderr?.trim() ?? 'pg_dump failed'}`);
+  }
+  console.log('');
+}
 
 for (const file of pending) {
   const sql = readFileSync(new URL(file, directory), 'utf8');
