@@ -1,5 +1,5 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { CustomerService } from './customer.service';
+import { CustomerService, inactiveDaysFilter } from './customer.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
 
@@ -16,6 +16,8 @@ export class CustomerController {
     @Query('source') source?: string,
     @Query('sortBy') sortBy?: string,
     @Query('sortOrder') sortOrder?: string,
+    // Whose newest completed order is older than this many days.
+    @Query('inactiveDays') inactiveDays?: string,
   ) {
     return this.customerService.findAll(
       Number(page),
@@ -24,6 +26,7 @@ export class CustomerController {
       source,
       sortBy,
       sortOrder?.toUpperCase() === 'DESC' ? 'DESC' : 'ASC',
+      inactiveDaysFilter(inactiveDays),
     );
   }
 }

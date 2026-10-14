@@ -22,6 +22,23 @@ function sumOrders(statuses: string[]): string {
 }
 
 /**
+ * When the person last bought something: their newest completed order, as
+ * stored by the shop (GMT, no zone). A cancelled order is not buying, so
+ * last_order_at would hide someone inactive behind a fresh cancellation. NULL
+ * when they never completed an order. The date is checked before the cast so
+ * one malformed value cannot fail the whole list.
+ */
+export const LAST_COMPLETED = `(SELECT max((o->>'date')::timestamp) FROM ${ORDERS}
+  WHERE o->>'status' IN (${COMPLETED_STATUSES.map((s) => `'${s}'`).join(', ')})
+    AND o->>'date' ~ '^\\d{4}-\\d{2}-\\d{2}')`;
+
+// "Not bought for N days": a whole number of days, up to ten years.
+export function inactiveDaysFilter(value: unknown): number | undefined {
+  const n = Number(value);
+  return Number.isInteger(n) && n >= 1 && n <= 3650 ? n : undefined;
+}
+
+/**
  * What the list can be sorted by. A whitelist, because the value ends up in SQL.
  * Order counts and totals live only in source_data; reading them from jsonb on
  * each request is fine at the size of this table (thousands of rows).
@@ -35,6 +52,8 @@ const SORT_COLUMNS: Record<string, string> = {
   spent: sumOrders(COMPLETED_STATUSES),
   first_order: 'customer.first_order_at',
   last_order: 'customer.last_order_at',
+  // Oldest purchase first: who has gone longest without buying.
+  last_completed: LAST_COMPLETED,
 };
 
 @Injectable()
@@ -51,6 +70,7 @@ export class CustomerService {
     source?: string,
     sortBy = 'id',
     sortOrder: 'ASC' | 'DESC' = 'ASC',
+    inactiveDays?: number,
   ): Promise<{ data: Customer[]; total: number; page: number; limit: number }> {
     const sortColumn = Object.hasOwn(SORT_COLUMNS, sortBy)
       ? SORT_COLUMNS[sortBy]
@@ -67,6 +87,15 @@ export class CustomerService {
 
     if (source) {
       qb.andWhere('customer.source = :source', { source });
+    }
+
+    // Bought before, but not in the last N days. Never bought (NULL) is left
+    // out: there is nobody to win back.
+    if (inactiveDays) {
+      qb.andWhere(
+        `${LAST_COMPLETED} < (now() AT TIME ZONE 'UTC') - make_interval(days => :inactiveDays)`,
+        { inactiveDays },
+      );
     }
 
     const term = search?.trim();
