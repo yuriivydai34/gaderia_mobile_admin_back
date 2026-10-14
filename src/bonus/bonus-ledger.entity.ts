@@ -15,12 +15,20 @@ export class BonusLedger {
   @Column({ type: 'int' })
   amount: number;
 
-  // ACCRUE or REDEEM.
+  // ACCRUE, REDEEM, or REVERSE (an accrual taken back after a refund).
   @Column({ type: 'varchar' })
   type: string;
 
   @Column({ name: 'payment_id', type: 'int', nullable: true, default: null })
   payment_id: number | null;
+
+  // APP or WOO (migrations/017). A site order has no payment row and is known
+  // by its WooCommerce number instead.
+  @Column({ type: 'varchar', default: 'APP' })
+  source: string;
+
+  @Column({ name: 'external_order_id', type: 'varchar', nullable: true, default: null })
+  external_order_id: string | null;
 
   @CreateDateColumn({ name: 'createdAt' })
   createdAt: Date;
