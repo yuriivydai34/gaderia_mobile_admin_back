@@ -28,6 +28,7 @@ import { PromoModule } from './promo/promo.module';
 import { AppSetting } from './app-setting/app-setting.entity';
 import { AppSettingModule } from './app-setting/app-setting.module';
 import { SystemModule } from './system/system.module';
+import { BonusLedger } from './bonus/bonus-ledger.entity';
 
 @Module({
   imports: [
@@ -40,7 +41,7 @@ import { SystemModule } from './system/system.module';
       username: process.env.DB_USER ?? 'postgres',
       password: process.env.DB_PASSWORD ?? 'postgres',
       database: process.env.DB_NAME ?? 'your_database_name',
-      entities: [Account, AccountDocument, Payment, Catalog, Shift, Customer, IntegrationState, Favorite, OrderReview, PromoCode, PromoRedemption, AppSetting],
+      entities: [Account, AccountDocument, Payment, Catalog, Shift, Customer, IntegrationState, Favorite, OrderReview, PromoCode, PromoRedemption, AppSetting, BonusLedger],
       synchronize: false,
     }),
     AuthModule,

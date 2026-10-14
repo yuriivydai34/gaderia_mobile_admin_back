@@ -29,6 +29,7 @@ import { IntegrationState } from '../dist/integration/woocommerce/integration-st
 import { Favorite } from '../dist/favorite/favorite.entity.js';
 import { OrderReview } from '../dist/review/order-review.entity.js';
 import { PromoCode, PromoRedemption } from '../dist/promo/promo-code.entity.js';
+import { BonusLedger } from '../dist/bonus/bonus-ledger.entity.js';
 import { AppSetting } from '../dist/app-setting/app-setting.entity.js';
 
 try {
@@ -54,7 +55,7 @@ const ds = new DataSource({
   username: process.env.DEV_DB_USER ?? 'gaderia',
   password: process.env.DEV_DB_PASSWORD ?? 'devpass',
   database: process.env.DEV_DB_NAME ?? 'gaderia_dev',
-  entities: [Account, AccountDocument, Payment, Catalog, Shift, Customer, IntegrationState, Favorite, OrderReview, PromoCode, PromoRedemption, AppSetting],
+  entities: [Account, AccountDocument, Payment, Catalog, Shift, Customer, IntegrationState, Favorite, OrderReview, PromoCode, PromoRedemption, AppSetting, BonusLedger],
   synchronize: true,
   logging: false,
 });
@@ -68,6 +69,7 @@ if (process.argv.includes('--as-prod')) {
   await ds.query('DROP TABLE IF EXISTS integration_state');
   await ds.query('DROP TABLE IF EXISTS account_document');
   await ds.query('DROP TABLE IF EXISTS order_review');
+  await ds.query('DROP TABLE IF EXISTS bonus_ledger');
   await ds.query('DROP TABLE IF EXISTS promo_redemption');
   await ds.query('DROP TABLE IF EXISTS promo_code');
   await ds.query('DROP TABLE IF EXISTS app_setting');
