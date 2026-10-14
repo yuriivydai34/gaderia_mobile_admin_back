@@ -18,6 +18,8 @@ export class CustomerController {
     @Query('sortOrder') sortOrder?: string,
     // Whose newest completed order is older than this many days.
     @Query('inactiveDays') inactiveDays?: string,
+    // With it, a range: inactive at least inactiveDays, at most this.
+    @Query('inactiveMaxDays') inactiveMaxDays?: string,
   ) {
     return this.customerService.findAll(
       Number(page),
@@ -27,6 +29,7 @@ export class CustomerController {
       sortBy,
       sortOrder?.toUpperCase() === 'DESC' ? 'DESC' : 'ASC',
       inactiveDaysFilter(inactiveDays),
+      inactiveDaysFilter(inactiveMaxDays),
     );
   }
 }

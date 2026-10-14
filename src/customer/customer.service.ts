@@ -71,6 +71,10 @@ export class CustomerService {
     sortBy = 'id',
     sortOrder: 'ASC' | 'DESC' = 'ASC',
     inactiveDays?: number,
+    // Upper bound for a range: bought within the last inactiveMaxDays, but not
+    // within the last inactiveDays. Without it, "30 days" also holds everyone
+    // inactive for 60, 90 or 365.
+    inactiveMaxDays?: number,
   ): Promise<{ data: Customer[]; total: number; page: number; limit: number }> {
     const sortColumn = Object.hasOwn(SORT_COLUMNS, sortBy)
       ? SORT_COLUMNS[sortBy]
@@ -96,6 +100,12 @@ export class CustomerService {
         `${LAST_COMPLETED} < (now() AT TIME ZONE 'UTC') - make_interval(days => :inactiveDays)`,
         { inactiveDays },
       );
+      if (inactiveMaxDays && inactiveMaxDays > inactiveDays) {
+        qb.andWhere(
+          `${LAST_COMPLETED} >= (now() AT TIME ZONE 'UTC') - make_interval(days => :inactiveMaxDays)`,
+          { inactiveMaxDays },
+        );
+      }
     }
 
     const term = search?.trim();
