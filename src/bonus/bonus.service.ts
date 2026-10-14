@@ -30,6 +30,9 @@ export type BonusEntry = {
   type: string;
   createdAt: string;
   payment_id: number | null;
+  // APP, or WOO for a website order known by its WooCommerce number.
+  source: string;
+  external_order_id: string | null;
   order_amount: number | null;
   order_status: string | null;
 };
@@ -96,7 +99,7 @@ export class BonusService {
     );
     if (!account) throw new NotFoundException(`No bonuses for account ${accountId}`);
     const entries: BonusEntry[] = await this.ledger.query(
-      `SELECT b.id, b.amount, b.type, b."createdAt", b.payment_id,
+      `SELECT b.id, b.amount, b.type, b."createdAt", b.payment_id, b.source, b.external_order_id,
               p.amount AS order_amount, p.status AS order_status
        FROM bonus_ledger b LEFT JOIN payment p ON p.id = b.payment_id
        WHERE b.account_id = $1
