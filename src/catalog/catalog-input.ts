@@ -20,6 +20,7 @@ export const APPLE_TYPES = [
 ] as const;
 export const PACKAGING_TYPES = ['GLASS', 'BAGINBOX'] as const;
 export const MEASUREMENT_TYPES = ['LITER', 'KG'] as const;
+export const OWN_SETS_ROLES = ['single', 'pack'] as const;
 
 // Each kind of product has exactly one type field; the other two are cleared.
 const SUBTYPE = {
@@ -38,6 +39,7 @@ export type CatalogInput = Partial<
     | 'type_juice' | 'type_vinegar' | 'type_apple'
     | 'shipment_length' | 'shipment_width' | 'shipment_height' | 'shipment_weight'
     | 'id_sort' | 'is_active' | 'is_new' | 'badge' | 'badge_color' | 'picture_original'
+    | 'own_sets_role'
   >
 >;
 
@@ -106,6 +108,10 @@ export function normalizeCatalogInput(
   if ('id_sort' in body) out.id_sort = number(body.id_sort, 'Порядок') as number;
   if ('is_active' in body) out.is_active = Boolean(body.is_active);
   if ('is_new' in body) out.is_new = Boolean(body.is_new);
+  // Empty is "neither": vinegar, apples, honey, tasting sets.
+  if ('own_sets_role' in body) {
+    out.own_sets_role = blank(body.own_sets_role) ? null : oneOf(body.own_sets_role, OWN_SETS_ROLES, 'Поштучний продаж');
+  }
   // The website's label: text and colour per product. No text, no label.
   if ('badge' in body) {
     out.badge = text(body.badge);

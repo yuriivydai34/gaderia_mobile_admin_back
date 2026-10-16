@@ -159,3 +159,13 @@ describe('normalizeCatalogInput', () => {
     });
   });
 });
+
+describe('own_sets_role', () => {
+  it('takes single, pack or empty (neither), and nothing else', () => {
+    expect(normalizeCatalogInput({ own_sets_role: 'single' }, true)).toEqual({ own_sets_role: 'single' });
+    expect(normalizeCatalogInput({ own_sets_role: 'pack' }, true)).toEqual({ own_sets_role: 'pack' });
+    expect(normalizeCatalogInput({ own_sets_role: '' }, true)).toEqual({ own_sets_role: null });
+    expect(normalizeCatalogInput({ own_sets_role: null }, true)).toEqual({ own_sets_role: null });
+    expect(() => normalizeCatalogInput({ own_sets_role: 'bottle' }, true)).toThrow(BadRequestException);
+  });
+});

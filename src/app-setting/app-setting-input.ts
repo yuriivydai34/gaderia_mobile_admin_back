@@ -1,4 +1,13 @@
 import { BadRequestException } from '@nestjs/common';
+import {
+  DEFAULT_PACK_RULES,
+  normalizeOwnSetsMode,
+  normalizePackRules,
+  normalizeTesters,
+  OwnSetsMode,
+  PackRule,
+  readStored,
+} from './own-sets';
 
 // Every setting the panel knows, its kind and the value it has while its row
 // is missing. app-server falls back to the same defaults (GET /app/config).
@@ -12,6 +21,11 @@ export const APP_SETTINGS = {
   // The promo code field at checkout (app 1.3.3+; 1.3.2 has it hidden in
   // code). Off: only automatic codes apply.
   promo_field_enabled: { kind: 'boolean', default: false },
+  // Juices by the bottle (own-sets.ts, catalog.own_sets_role). Off until the
+  // website sells bottles too; 'testers' shows bottles to the listed accounts.
+  own_sets_mode: { kind: 'own_sets_mode', default: 'off' as OwnSetsMode },
+  own_sets_testers: { kind: 'account_ids', default: [] as number[] },
+  pack_rules: { kind: 'pack_rules', default: DEFAULT_PACK_RULES },
 
   // The Telegram bot (gaderia_bot, services/settings.py). Empty means the
   // bot's own value: the text in texts.py, the manager and hours in its .env.
@@ -31,6 +45,9 @@ export type AppSettings = {
   min_app_version: string | null;
   latest_app_version: string | null;
   promo_field_enabled: boolean;
+  own_sets_mode: OwnSetsMode;
+  own_sets_testers: number[];
+  pack_rules: PackRule[];
   bot_sale_text: string | null;
   bot_manager_username: string | null;
   bot_manager_work_hours: string | null;
@@ -50,6 +67,9 @@ const LABEL: Record<AppSettingKey, string> = {
   min_app_version: 'Мінімальна версія',
   latest_app_version: 'Рекомендована версія',
   promo_field_enabled: 'Поле «Промокод» у застосунку',
+  own_sets_mode: 'Поштучний продаж',
+  own_sets_testers: 'Тестувальники поштучного продажу',
+  pack_rules: 'Правила кратності',
   bot_sale_text: 'Текст «Акції»',
   bot_manager_username: 'Менеджер у Telegram',
   bot_manager_work_hours: 'Графік менеджера',
@@ -58,7 +78,10 @@ const LABEL: Record<AppSettingKey, string> = {
 
 export function defaultAppSettings(): AppSettings {
   const out = {} as Record<string, unknown>;
-  for (const [key, spec] of Object.entries(APP_SETTINGS)) out[key] = spec.default;
+  // Lists are copied, so nobody edits the shared default.
+  for (const [key, spec] of Object.entries(APP_SETTINGS)) {
+    out[key] = Array.isArray(spec.default) ? structuredClone(spec.default) : spec.default;
+  }
   return out as AppSettings;
 }
 
@@ -67,6 +90,9 @@ export function readStoredValue(key: string, value: unknown): unknown {
   const spec = APP_SETTINGS[key as AppSettingKey];
   if (!spec) return undefined;
   if (spec.kind === 'boolean') return typeof value === 'boolean' ? value : undefined;
+  if (spec.kind === 'own_sets_mode') return readStored(normalizeOwnSetsMode, value);
+  if (spec.kind === 'account_ids') return readStored(normalizeTesters, value);
+  if (spec.kind === 'pack_rules') return readStored(normalizePackRules, value);
   if (typeof value !== 'string') return undefined;
   if (spec.kind === 'version') return VERSION_PATTERN.test(value) ? value : undefined;
   if (spec.kind === 'telegram_username') return TELEGRAM_USERNAME_PATTERN.test(value) ? value : undefined;
@@ -101,6 +127,12 @@ export function normalizeAppSettingsInput(
     if (spec.kind === 'boolean') {
       if (typeof value !== 'boolean') throw new BadRequestException(`${label}: має бути true або false`);
       out[key] = value;
+    } else if (spec.kind === 'own_sets_mode') {
+      out[key] = normalizeOwnSetsMode(value);
+    } else if (spec.kind === 'account_ids') {
+      out[key] = normalizeTesters(value);
+    } else if (spec.kind === 'pack_rules') {
+      out[key] = normalizePackRules(value);
     } else if (spec.kind === 'version') {
       const text = value === null || value === undefined ? '' : String(value).trim();
       if (text && !VERSION_PATTERN.test(text)) {
