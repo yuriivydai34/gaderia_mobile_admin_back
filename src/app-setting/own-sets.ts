@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import { JUICE_TYPES } from '../catalog/catalog-input';
 
 // Juices by the bottle, as on the website (gaderia_wc inc/pack-rules.php):
 // bottles (catalog.own_sets_role 'single') are sold one at a time but ship in
@@ -22,6 +23,39 @@ export type PackRule = {
   msg: string;
   enabled: boolean;
 };
+
+// A ready-made mix, as on the website (gaderia_wc inc/pack-mixes.php): a
+// shortcut that puts a whole box of different flavours in the cart in one tap.
+// Not a product: the cart gets the ordinary bottles. The flavours are the
+// juice codes of the bottles (catalog.type_juice), the volume is the bottle's.
+export type PackMix = {
+  id: string;
+  name: string;
+  measurement: number;
+  // Bottles of each flavour; together they must fill the box of that volume.
+  items: { juice: string; qty: number }[];
+  enabled: boolean;
+};
+
+export const PACK_MIXES_MAX = 20;
+const MIX_ID = /^[A-Za-z0-9_-]{1,40}$/;
+
+const mix = (id: string, name: string, measurement: number, juices: string[]): PackMix => ({
+  id,
+  name,
+  measurement,
+  items: juices.map((juice) => ({ juice, qty: 1 })),
+  enabled: true,
+});
+
+// The five the website starts with.
+export const DEFAULT_PACK_MIXES: PackMix[] = [
+  mix('bez-vynogradu-i-yabluchnogo', 'Мікс «Без винограду й яблучного»', 1, ['PEARAPPLE', 'CARROTAPPLE', 'STRAWBERRYAPPLE', 'APPLEGINGER', 'APPLELEMON', 'APPLEBERRY']),
+  mix('bez-morkvy-i-yagidnogo', 'Мікс «Без моркви й ягідного»', 1, ['APPLE', 'PEARAPPLE', 'STRAWBERRYAPPLE', 'APPLEGRAPE', 'APPLEGINGER', 'APPLELEMON']),
+  mix('grusha-i-polunycya', 'Мікс «Груша + Полуниця»', 3, ['PEARAPPLE', 'STRAWBERRYAPPLE']),
+  mix('imbyr-i-lymon', 'Мікс «Імбир + Лимон»', 3, ['APPLEGINGER', 'APPLELEMON']),
+  mix('yabluchnyj-i-yagidnyj', 'Мікс «Яблучний + Фруктово-ягідний»', 3, ['APPLE', 'APPLEBERRY']),
+];
 
 export const OWN_SETS_TESTERS_MAX = 50;
 export const PACK_RULES_MAX = 20;
@@ -80,6 +114,50 @@ export function normalizePackRules(value: unknown): PackRule[] {
     if (!msg || msg.length > 200) throw new BadRequestException(`${r}: повідомлення від 1 до 200 символів`);
     if (typeof b.enabled !== 'boolean') throw new BadRequestException(`${r}: «увімкнено» має бути true або false`);
     return { measurement, n, label, msg, enabled: b.enabled };
+  });
+}
+
+/**
+ * The mixes sent from the panel. A mix must fill exactly one box: the bottles
+ * of its flavours add up to the box size of its volume, taken from `rules`
+ * (the rules saved with it, or the stored ones).
+ */
+export function normalizePackMixes(value: unknown, rules: PackRule[] = DEFAULT_PACK_RULES): PackMix[] {
+  if (!Array.isArray(value)) throw new BadRequestException('Мікси: має бути список');
+  if (value.length > PACK_MIXES_MAX) throw new BadRequestException(`Мікси: не більше ${PACK_MIXES_MAX}`);
+  const ids = new Set<string>();
+  return value.map((raw, i): PackMix => {
+    const r = `Мікс ${i + 1}`;
+    if (!raw || typeof raw !== 'object') throw new BadRequestException(`${r}: невірний формат`);
+    const b = raw as Record<string, unknown>;
+    const id = text(b.id);
+    if (!MIX_ID.test(id) || ids.has(id)) throw new BadRequestException(`${r}: невірний id`);
+    ids.add(id);
+    const name = text(b.name);
+    if (!name || name.length > 60) throw new BadRequestException(`${r}: назва від 1 до 60 символів`);
+    const measurement = Number(b.measurement);
+    if (!Number.isFinite(measurement) || measurement <= 0) throw new BadRequestException(`${r}: обсяг пляшки більше нуля`);
+    if (typeof b.enabled !== 'boolean') throw new BadRequestException(`${r}: «увімкнено» має бути true або false`);
+    if (!Array.isArray(b.items) || b.items.length === 0) throw new BadRequestException(`${r}: додайте хоча б один смак`);
+    const seen = new Set<string>();
+    let total = 0;
+    const items = b.items.map((it: unknown) => {
+      const o = (it ?? {}) as Record<string, unknown>;
+      const juice = String(o.juice ?? '');
+      if (!(JUICE_TYPES as readonly string[]).includes(juice)) throw new BadRequestException(`${r}: невідомий смак «${juice}»`);
+      if (seen.has(juice)) throw new BadRequestException(`${r}: смак «${juice}» двічі`);
+      seen.add(juice);
+      const qty = Number(o.qty);
+      if (!Number.isInteger(qty) || qty < 1 || qty > 100) throw new BadRequestException(`${r}: кількість від 1 до 100`);
+      total += qty;
+      return { juice, qty };
+    });
+    const rule = rules.find((x) => x.enabled && x.measurement === measurement);
+    if (!rule) throw new BadRequestException(`${r}: для ${measurement} л немає увімкненого правила коробки`);
+    if (total !== rule.n) {
+      throw new BadRequestException(`${r}: у коробці ${rule.n}, а в міксі ${total}`);
+    }
+    return { id, name, measurement, items, enabled: b.enabled };
   });
 }
 

@@ -1,10 +1,13 @@
 import { BadRequestException } from '@nestjs/common';
 import {
+  DEFAULT_PACK_MIXES,
   DEFAULT_PACK_RULES,
   normalizeOwnSetsMode,
+  normalizePackMixes,
   normalizePackRules,
   normalizeTesters,
   OwnSetsMode,
+  PackMix,
   PackRule,
   readStored,
 } from './own-sets';
@@ -26,6 +29,8 @@ export const APP_SETTINGS = {
   own_sets_mode: { kind: 'own_sets_mode', default: 'off' as OwnSetsMode },
   own_sets_testers: { kind: 'account_ids', default: [] as number[] },
   pack_rules: { kind: 'pack_rules', default: DEFAULT_PACK_RULES },
+  // Ready-made mixes: one tap puts a whole box of flavours in the cart.
+  pack_mixes: { kind: 'pack_mixes', default: DEFAULT_PACK_MIXES },
 
   // The Telegram bot (gaderia_bot, services/settings.py). Empty means the
   // bot's own value: the text in texts.py, the manager and hours in its .env.
@@ -48,6 +53,7 @@ export type AppSettings = {
   own_sets_mode: OwnSetsMode;
   own_sets_testers: number[];
   pack_rules: PackRule[];
+  pack_mixes: PackMix[];
   bot_sale_text: string | null;
   bot_manager_username: string | null;
   bot_manager_work_hours: string | null;
@@ -70,6 +76,7 @@ const LABEL: Record<AppSettingKey, string> = {
   own_sets_mode: 'Поштучний продаж',
   own_sets_testers: 'Тестувальники поштучного продажу',
   pack_rules: 'Правила кратності',
+  pack_mixes: 'Готові мікси',
   bot_sale_text: 'Текст «Акції»',
   bot_manager_username: 'Менеджер у Telegram',
   bot_manager_work_hours: 'Графік менеджера',
@@ -93,6 +100,7 @@ export function readStoredValue(key: string, value: unknown): unknown {
   if (spec.kind === 'own_sets_mode') return readStored(normalizeOwnSetsMode, value);
   if (spec.kind === 'account_ids') return readStored(normalizeTesters, value);
   if (spec.kind === 'pack_rules') return readStored(normalizePackRules, value);
+  if (spec.kind === 'pack_mixes') return readStored((v) => normalizePackMixes(v), value);
   if (typeof value !== 'string') return undefined;
   if (spec.kind === 'version') return VERSION_PATTERN.test(value) ? value : undefined;
   if (spec.kind === 'telegram_username') return TELEGRAM_USERNAME_PATTERN.test(value) ? value : undefined;
@@ -133,6 +141,10 @@ export function normalizeAppSettingsInput(
       out[key] = normalizeTesters(value);
     } else if (spec.kind === 'pack_rules') {
       out[key] = normalizePackRules(value);
+    } else if (spec.kind === 'pack_mixes') {
+      // A mix must fill the box of the rules in force: those sent with it, or stored.
+      const rulesNow = Array.isArray(body.pack_rules) ? normalizePackRules(body.pack_rules) : current.pack_rules;
+      out[key] = normalizePackMixes(value, rulesNow);
     } else if (spec.kind === 'version') {
       const text = value === null || value === undefined ? '' : String(value).trim();
       if (text && !VERSION_PATTERN.test(text)) {
