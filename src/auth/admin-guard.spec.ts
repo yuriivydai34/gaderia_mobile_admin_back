@@ -11,6 +11,11 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 // token, and answers with states and timings only.
 const PUBLIC = ['', 'auth', 'health'];
 
+// Single routes that are open inside an otherwise admin-only controller. The
+// app's promotions carousel is public the moment it is switched on, and a
+// carousel that needs a token is one app-server must carry credentials for.
+const PUBLIC_ROUTES = ['banners/active'];
+
 function controllerFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = join(dir, entry.name);
@@ -35,8 +40,36 @@ describe('admin-only routes', () => {
   it.each(controllers.filter((c) => !PUBLIC.includes(c.path)).map((c) => [c.name, c]))(
     '%s is behind JwtAuthGuard and AdminGuard',
     (_, c) => {
-      const guards = (Reflect.getMetadata(GUARDS_METADATA, c.cls) ?? []) as unknown[];
-      expect(guards).toEqual(expect.arrayContaining([JwtAuthGuard, AdminGuard]));
+      const onClass = (Reflect.getMetadata(GUARDS_METADATA, c.cls) ?? []) as unknown[];
+      if (onClass.length > 0) {
+        expect(onClass).toEqual(expect.arrayContaining([JwtAuthGuard, AdminGuard]));
+        return;
+      }
+
+      // No guards on the class: then every route of it must carry its own,
+      // except the few listed above. Checked route by route, so a controller
+      // that guards most of its methods and forgets one still fails here.
+      const proto = c.cls.prototype as object;
+      const routes = Object.getOwnPropertyNames(proto)
+        // The constructor carries the class's own path metadata, which would
+        // otherwise read as a route with no guards on it.
+        .filter((name) => name !== 'constructor')
+        .map((name) => Object.getOwnPropertyDescriptor(proto, name)?.value as unknown)
+        .filter(
+          (fn): fn is (...args: never[]) => unknown =>
+            typeof fn === 'function' && Reflect.getMetadata(PATH_METADATA, fn) !== undefined,
+        );
+
+      expect(routes.length).toBeGreaterThan(0);
+      for (const route of routes) {
+        const path = `${c.path}/${String(Reflect.getMetadata(PATH_METADATA, route))}`
+          .replace(/\/+/g, '/')
+          .replace(/\/$/, '');
+        if (PUBLIC_ROUTES.includes(path)) continue;
+        expect(Reflect.getMetadata(GUARDS_METADATA, route) ?? []).toEqual(
+          expect.arrayContaining([JwtAuthGuard, AdminGuard]),
+        );
+      }
     },
   );
 });

@@ -17,6 +17,8 @@ import {
 export const APP_SETTINGS = {
   // The "Новинки" carousel at the top of the app's catalog.
   new_carousel_enabled: { kind: 'boolean', default: false },
+  // The promotions carousel at the top of the app (banner.entity.ts).
+  banners_enabled: { kind: 'boolean', default: false },
   // An app older than this shows only "Оновіть застосунок" and a store link.
   min_app_version: { kind: 'version', default: null },
   // An app older than this asks once to update and can be dismissed.
@@ -47,6 +49,7 @@ export const APP_SETTINGS = {
 
 export type AppSettings = {
   new_carousel_enabled: boolean;
+  banners_enabled: boolean;
   min_app_version: string | null;
   latest_app_version: string | null;
   promo_field_enabled: boolean;
@@ -70,6 +73,7 @@ export const TELEGRAM_USERNAME_PATTERN = /^[A-Za-z][A-Za-z0-9_]{4,31}$/;
 
 const LABEL: Record<AppSettingKey, string> = {
   new_carousel_enabled: 'Карусель «Новинки»',
+  banners_enabled: 'Карусель «Акції»',
   min_app_version: 'Мінімальна версія',
   latest_app_version: 'Рекомендована версія',
   promo_field_enabled: 'Поле «Промокод» у застосунку',

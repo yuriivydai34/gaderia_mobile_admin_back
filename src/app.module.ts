@@ -14,6 +14,8 @@ import { CatalogModule } from './catalog/catalog.module';
 import { Catalog } from './catalog/catalog.entity';
 import { ShiftModule } from './shift/shift.module';
 import { Shift } from './shift/shift.entity';
+import { BannerModule } from './banner/banner.module';
+import { PromoBanner } from './banner/banner.entity';
 import { CustomerModule } from './customer/customer.module';
 import { Customer } from './customer/customer.entity';
 import { WooModule } from './integration/woocommerce/woo.module';
@@ -43,7 +45,7 @@ import { OverviewModule } from './overview/overview.module';
       username: process.env.DB_USER ?? 'postgres',
       password: process.env.DB_PASSWORD ?? 'postgres',
       database: process.env.DB_NAME ?? 'your_database_name',
-      entities: [Account, AccountDocument, Payment, Catalog, Shift, Customer, IntegrationState, Favorite, OrderReview, PromoCode, PromoRedemption, AppSetting, BonusLedger],
+      entities: [Account, AccountDocument, Payment, Catalog, Shift, Customer, IntegrationState, Favorite, OrderReview, PromoCode, PromoRedemption, AppSetting, BonusLedger, PromoBanner],
       synchronize: false,
     }),
     AuthModule,
@@ -51,6 +53,7 @@ import { OverviewModule } from './overview/overview.module';
     PaymentModule,
     CatalogModule,
     ShiftModule,
+    BannerModule,
     CustomerModule,
     WooModule,
     ReviewModule,

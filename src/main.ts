@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { BADGE_PICTURES_ROUTE, badgePicturesDir } from './catalog/picture-badge';
+import { BANNER_IMAGES_ROUTE, bannerImagesDir } from './banner/banner-image';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -19,6 +20,14 @@ async function bootstrap() {
   // the files can be cached for good.
   app.useStaticAssets(badgePicturesDir(), {
     prefix: BADGE_PICTURES_ROUTE,
+    index: false,
+    maxAge: '365d',
+    immutable: true,
+  });
+  // Banner pictures, uploaded in the panel. Public by nature, and named after
+  // their contents, so they can be cached for good like the badged ones.
+  app.useStaticAssets(bannerImagesDir(), {
+    prefix: BANNER_IMAGES_ROUTE,
     index: false,
     maxAge: '365d',
     immutable: true,
