@@ -65,9 +65,10 @@ describe('ready-made mixes', () => {
     ...over,
   });
 
-  it('starts with the five of the website, each filling its box', () => {
+  it('starts with the two of the website, each filling its box', () => {
     const d = defaultAppSettings();
-    expect(d.pack_mixes).toHaveLength(5);
+    expect(d.pack_mixes).toHaveLength(2);
+    expect(d.pack_mixes.map((x) => x.name)).toEqual(['Набір 1', 'Набір 2']);
     expect(() => normalizeAppSettingsInput({ pack_mixes: d.pack_mixes })).not.toThrow();
   });
 

@@ -48,13 +48,13 @@ const mix = (id: string, name: string, measurement: number, juices: string[]): P
   enabled: true,
 });
 
-// The five the website starts with.
+// The two the website starts with, ids, names and flavours as in
+// gaderia_wc inc/pack-mixes.php (gdr_pack_mixes_default). The three
+// three-litre ones were dropped there, so they go from here too: this list is
+// what the app shows until a manager saves its own in the panel.
 export const DEFAULT_PACK_MIXES: PackMix[] = [
-  mix('bez-vynogradu-i-yabluchnogo', 'Мікс «Без винограду й яблучного»', 1, ['PEARAPPLE', 'CARROTAPPLE', 'STRAWBERRYAPPLE', 'APPLEGINGER', 'APPLELEMON', 'APPLEBERRY']),
-  mix('bez-morkvy-i-yagidnogo', 'Мікс «Без моркви й ягідного»', 1, ['APPLE', 'PEARAPPLE', 'STRAWBERRYAPPLE', 'APPLEGRAPE', 'APPLEGINGER', 'APPLELEMON']),
-  mix('grusha-i-polunycya', 'Мікс «Груша + Полуниця»', 3, ['PEARAPPLE', 'STRAWBERRYAPPLE']),
-  mix('imbyr-i-lymon', 'Мікс «Імбир + Лимон»', 3, ['APPLEGINGER', 'APPLELEMON']),
-  mix('yabluchnyj-i-yagidnyj', 'Мікс «Яблучний + Фруктово-ягідний»', 3, ['APPLE', 'APPLEBERRY']),
+  mix('bez-vynogradu-i-yabluchnogo', 'Набір 1', 1, ['PEARAPPLE', 'CARROTAPPLE', 'STRAWBERRYAPPLE', 'APPLEGINGER', 'APPLELEMON', 'APPLEBERRY']),
+  mix('bez-morkvy-i-yagidnogo', 'Набір 2', 1, ['APPLE', 'PEARAPPLE', 'STRAWBERRYAPPLE', 'APPLEGRAPE', 'APPLEGINGER', 'APPLELEMON']),
 ];
 
 export const OWN_SETS_TESTERS_MAX = 50;
