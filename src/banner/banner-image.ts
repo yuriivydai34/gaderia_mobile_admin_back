@@ -13,8 +13,13 @@ import sharp from 'sharp';
  * picture - so the folder this API serves holds only pictures it made itself.
  */
 
-/** The path this API serves banner pictures under (main.ts). */
-export const BANNER_IMAGES_ROUTE = '/banner-images';
+/** The path this API serves banner pictures under (main.ts). Not "banner":
+ *  ad blockers' generic ad filter lists treat that word as an ad marker and
+ *  silently drop any request whose URL contains it, on any domain - found
+ *  24.10.2026 when the panel's own "Акції" tab could not load (ERR_BLOCKED_BY_CLIENT
+ *  on /banners, and again on the static export's own prefetch files for that
+ *  route, which get their name from the page's folder). */
+export const BANNER_IMAGES_ROUTE = '/promo-images';
 
 /** Refused before decoding; a banner is a picture, not a poster print. */
 export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;

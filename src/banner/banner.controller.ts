@@ -34,8 +34,12 @@ const upload = () =>
  *
  * Pictures arrive as multipart, so the fields beside them are strings -
  * banner-input.ts reads "false" and "" as what the panel meant.
+ *
+ * Not "/banners": ad blockers' generic filter lists block any URL containing
+ * that word, on any domain - this is what made the panel's own "Акції" tab
+ * fail to load (24.10.2026).
  */
-@Controller('banners')
+@Controller('promotions')
 export class BannerController {
   constructor(private readonly banners: BannerService) {}
 

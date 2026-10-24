@@ -14,7 +14,7 @@ const PUBLIC = ['', 'auth', 'health'];
 // Single routes that are open inside an otherwise admin-only controller. The
 // app's promotions carousel is public the moment it is switched on, and a
 // carousel that needs a token is one app-server must carry credentials for.
-const PUBLIC_ROUTES = ['banners/active'];
+const PUBLIC_ROUTES = ['promotions/active'];
 
 function controllerFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {

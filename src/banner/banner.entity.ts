@@ -28,7 +28,7 @@ export class PromoBanner {
   @Column({ type: 'varchar' })
   title: string;
 
-  /** File name under /banner-images, not a URL. */
+  /** File name under /promo-images, not a URL. */
   @Column({ type: 'varchar' })
   image: string;
 
