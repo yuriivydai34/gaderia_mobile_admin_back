@@ -1,6 +1,9 @@
 /**
- * Creates/corrects the 26 single-bottle catalog products and the 2 ready-kit
- * products for juices by the bottle (owner's brief, 24.10.2026). Not a
+ * Creates/corrects the 24 single-bottle juice products and the 2 ready-kit
+ * products for juices by the bottle (owner's brief, 24.10.2026). Vinegar is
+ * NOT sold by the piece (owner's correction, same day) — it stays the
+ * ordinary "2 пляшки" pack product it always was, so this does not touch it.
+ * Not a
  * migration: migrations/ is schema only (one ALTER TABLE per file, run on
  * every deploy); this writes rows, which belongs in a script, the same way
  * scripts/set-password.mjs does, run once by hand.
@@ -125,13 +128,6 @@ const BOTTLES = [
   ['4820270970393', 'Сік фруктово-ягідний, 3 л', 300, 'APPLEBERRY', 3, '2048202700319'],
 ];
 
-// Оцту правило кратності вимкнене (own-sets.ts), але це все одно "пляшка",
-// продається поштучно без обмеження на кількість.
-const VINEGAR = [
-  ['4820270970126', 'Оцет нефільтрований, 0,5 л', 200, 'UNFILTERED', BOTTLE_URL('gaderia_vinegar_single.jpg'), '2048202700180'],
-  ['4820270970041', 'Оцет фільтрований, 0,5 л', 160, 'FILTERED', 'https://gaderia.com.ua/wp-content/uploads/2023/09/oczet-2.webp', '2048202700173'],
-];
-
 // Артикули не підтверджені бухгалтерією (24.10.2026) — міняти лише тут.
 const KIT_ARTICLES = {
   kit1: '2048202700333',
@@ -243,11 +239,6 @@ async function run() {
   for (const [article, header, price, juice, measurement, packArticle] of BOTTLES) {
     await upsertBottle(article, header, price, measurement, packArticle, {
       typeProduct: 'JUICE', typeJuice: juice, pictureUrl: picture(juice, measurement),
-    });
-  }
-  for (const [article, header, price, vinegar, pictureUrl, packArticle] of VINEGAR) {
-    await upsertBottle(article, header, price, 0.5, packArticle, {
-      typeProduct: 'VINEGAR', typeVinegar: vinegar, pictureUrl,
     });
   }
   console.log();
