@@ -20,7 +20,7 @@ export const APPLE_TYPES = [
 ] as const;
 export const PACKAGING_TYPES = ['GLASS', 'BAGINBOX'] as const;
 export const MEASUREMENT_TYPES = ['LITER', 'KG'] as const;
-export const OWN_SETS_ROLES = ['single', 'pack'] as const;
+export const OWN_SETS_ROLES = ['single', 'pack', 'kit'] as const;
 
 // Each kind of product has exactly one type field; the other two are cleared.
 const SUBTYPE = {

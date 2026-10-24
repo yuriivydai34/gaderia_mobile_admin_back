@@ -3,10 +3,9 @@
  * products for juices by the bottle (owner's brief, 24.10.2026). Vinegar is
  * NOT sold by the piece (owner's correction, same day) — it stays the
  * ordinary "2 пляшки" pack product it always was, so this does not touch it.
- * Not a
- * migration: migrations/ is schema only (one ALTER TABLE per file, run on
- * every deploy); this writes rows, which belongs in a script, the same way
- * scripts/set-password.mjs does, run once by hand.
+ * Not a migration: migrations/ is schema only (one ALTER TABLE per file, run
+ * on every deploy); this writes rows, which belongs in a script, the same
+ * way scripts/set-password.mjs does, run once by hand.
  *
  *   node scripts/own-sets-catalog.mjs             preview, writes nothing
  *   node scripts/own-sets-catalog.mjs --apply      write (local DB by default)
@@ -21,12 +20,12 @@
  * copied from the matching pack of the same volume (own_sets_role='pack'),
  * since a loose bottle still ships in that pack's box.
  *
- * The two kit products (Набір 1 / Набір 2) are inserted hidden
- * (is_active=false): their article numbers are not yet confirmed by
- * accounting, and the single bottles are not to be ordered through the app
- * until the website has the matching products in WooCommerce. Flip
- * is_active by hand in the panel, alongside app_setting.own_sets_mode, once
- * that is ready.
+ * The two kit products (Набір 1 / Набір 2) are own_sets_role='kit'
+ * (migrations/022) — shown and hidden by the same own_sets_mode switch as a
+ * loose bottle, not an independent is_active flag: a ready-made mix of
+ * bottles makes no sense while the bottles themselves are hidden. Their
+ * article numbers are not yet confirmed by accounting; swap them in
+ * KIT_ARTICLES below when they are.
  */
 
 import { readFileSync } from 'node:fs';
@@ -203,21 +202,21 @@ async function upsertBottle(article, header, price, measurement, packArticle, { 
 }
 
 async function upsertKit(kit) {
-  const { rows } = await client.query('SELECT id, header, price FROM catalog WHERE article = $1', [kit.article]);
+  const { rows } = await client.query('SELECT id, header, price, own_sets_role, is_active FROM catalog WHERE article = $1', [kit.article]);
   if (rows[0]) {
     const row = rows[0];
-    const changed = row.header !== kit.header || Number(row.price) !== kit.price;
+    const changed = row.header !== kit.header || Number(row.price) !== kit.price || row.own_sets_role !== 'kit' || row.is_active !== true;
     console.log(`${changed ? 'UPDATE' : '   ok '} #${row.id} ${kit.article} ${kit.header} — ${kit.price} грн`);
     if (apply && changed) {
       await client.query(
-        `UPDATE catalog SET header = $1, price = $2, price_discount = 0, is_discount = false, "updatedAt" = now() WHERE article = $3`,
+        `UPDATE catalog SET header = $1, price = $2, price_discount = 0, is_discount = false, own_sets_role = 'kit', is_active = true, "updatedAt" = now() WHERE article = $3`,
         [kit.header, kit.price, kit.article],
       );
     }
     return;
   }
 
-  console.log(`INSERT        ${kit.article} ${kit.header} — ${kit.price} грн (приховано, is_active=false)`);
+  console.log(`INSERT        ${kit.article} ${kit.header} — ${kit.price} грн (own_sets_role=kit, видно разом із пляшками)`);
   if (!apply) return;
 
   // 9 кг, 28×19×26 — та сама коробка, що й у коробок 1 л (гілка
@@ -228,7 +227,7 @@ async function upsertKit(kit) {
         measurement, type_measurement, type_packaging, shipment_weight, shipment_length,
         shipment_width, shipment_height, article, is_active, own_sets_role, id_sort,
         "createdAt", "updatedAt")
-     VALUES ($1,$2,0,false,'JUICE',$3,6,'LITER','GLASS',9,28,19,26,$4,false,NULL,$5, now(), now())`,
+     VALUES ($1,$2,0,false,'JUICE',$3,6,'LITER','GLASS',9,28,19,26,$4,true,'kit',$5, now(), now())`,
     [kit.header, kit.price, kit.placeholderJuice, kit.article, await nextSort()],
   );
 }

@@ -78,11 +78,13 @@ export class Catalog {
   is_new: boolean;
 
   /**
-   * Juices by the bottle (migrations/019): 'single' a bottle, 'pack' a ready
-   * box, null neither. The app shows one side, see the own_sets_mode setting.
+   * Juices by the bottle (migrations/019, 'kit' added in 022): 'single' a
+   * bottle, 'pack' a ready box, 'kit' a fixed set of different flavours
+   * (shown and hidden the same as 'single'), null neither. The app shows one
+   * side, see the own_sets_mode setting.
    */
   @Column({ name: 'own_sets_role', type: 'varchar', nullable: true, default: null })
-  own_sets_role: 'single' | 'pack' | null;
+  own_sets_role: 'single' | 'pack' | 'kit' | null;
 
   /** Text of the label drawn onto `picture`, e.g. "Новинка!" (picture-badge.ts). */
   @Column({ type: 'varchar', nullable: true, default: null })
