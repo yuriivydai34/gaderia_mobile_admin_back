@@ -65,7 +65,10 @@ export const DEFAULT_PACK_RULES: PackRule[] = [
   { measurement: 0.33, n: 12, label: 'Сік 0,33 л', msg: 'Сік 0,33 л їде ящиками по 12 пляшок. Додайте ще {N} — смаки можна різні.', enabled: true },
   { measurement: 1, n: 6, label: 'Сік 1 л', msg: 'Сік 1 л їде ящиками по 6 пляшок. Додайте ще {N} — смаки можна різні.', enabled: true },
   { measurement: 3, n: 2, label: 'Сік 3 л', msg: 'Сік 3 л їде упаковками по 2. Додайте ще {N} — смаки можна різні.', enabled: true },
-  { measurement: 0.5, n: 2, label: 'Оцет 0,5 л', msg: 'Оцет 0,5 л їде парами. Додайте ще {N} — смаки можна різні.', enabled: true },
+  // Owner's decision 24.10.2026: no box rule for vinegar — an order of any
+  // number of 0.5 L bottles is fine. Kept here (disabled) rather than
+  // removed, so the box size is not lost if this is switched back on.
+  { measurement: 0.5, n: 2, label: 'Оцет 0,5 л', msg: 'Оцет 0,5 л їде парами. Додайте ще {N} — смаки можна різні.', enabled: false },
 ];
 
 function text(value: unknown): string {
