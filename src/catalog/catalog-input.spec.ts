@@ -164,9 +164,48 @@ describe('own_sets_role', () => {
   it('takes single, pack, kit or empty (neither), and nothing else', () => {
     expect(normalizeCatalogInput({ own_sets_role: 'single' }, true)).toEqual({ own_sets_role: 'single' });
     expect(normalizeCatalogInput({ own_sets_role: 'pack' }, true)).toEqual({ own_sets_role: 'pack' });
-    expect(normalizeCatalogInput({ own_sets_role: 'kit' }, true)).toEqual({ own_sets_role: 'kit' });
+    // A set clears the flavour fields with it - see the describe below.
+    expect(normalizeCatalogInput({ own_sets_role: 'kit' }, true)).toEqual({
+      own_sets_role: 'kit', type_juice: null, type_vinegar: null, type_apple: null,
+    });
     expect(normalizeCatalogInput({ own_sets_role: '' }, true)).toEqual({ own_sets_role: null });
     expect(normalizeCatalogInput({ own_sets_role: null }, true)).toEqual({ own_sets_role: null });
     expect(() => normalizeCatalogInput({ own_sets_role: 'bottle' }, true)).toThrow(BadRequestException);
+  });
+});
+
+// "Набір 1" is six flavours in one box. Stored as a juice it had to carry one
+// of them, and the app's filter is an exact match on type_juice - so it showed
+// up under that one flavour and under no other.
+describe('a set has no flavour of its own', () => {
+  const set = { type_product: 'JUICE', own_sets_role: 'kit', header: 'Набір 1', price: 735 };
+
+  it('does not ask for one, unlike any other juice', () => {
+    expect(() => normalizeCatalogInput({ ...set }, true)).not.toThrow();
+    expect(normalizeCatalogInput({ ...set }, true)).toMatchObject({
+      type_product: 'JUICE', own_sets_role: 'kit', type_juice: null,
+    });
+    // An ordinary juice still must have one.
+    expect(() => normalizeCatalogInput({ type_product: 'JUICE', header: 'Сік', price: 1 }, true)).toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('drops a flavour that was sent anyway', () => {
+    expect(normalizeCatalogInput({ ...set, type_juice: 'PEARAPPLE' }, true)).toMatchObject({
+      type_juice: null, type_vinegar: null, type_apple: null,
+    });
+  });
+
+  it('drops the flavour a stored product already had when it becomes a set', () => {
+    expect(
+      normalizeCatalogInput({ own_sets_role: 'kit' }, true, stored({ type_juice: 'PEARAPPLE' })),
+    ).toMatchObject({ type_juice: null });
+  });
+
+  it('leaves a bottle its flavour when only its role changes', () => {
+    expect(
+      normalizeCatalogInput({ own_sets_role: 'single' }, true, stored({ type_juice: 'PEARAPPLE' })),
+    ).toEqual({ own_sets_role: 'single' });
   });
 });

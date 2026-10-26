@@ -135,7 +135,17 @@ export function normalizeCatalogInput(
   // cleared whenever the kind or a type field is sent, so a vinegar cannot
   // keep a juice flavour.
   const kind = (out.type_product ?? current?.type_product) as keyof typeof SUBTYPE | undefined;
-  if ('type_product' in out || SUBTYPE_FIELDS.some((f) => f in body)) {
+  // A ready-made set ('kit') is several flavours sold as one product, so it
+  // has no flavour of its own. Demanding one meant picking one of its six at
+  // random, and the app's flavour filter is an exact match on type_juice -
+  // "Набір 1" stored as PEARAPPLE turned up under "Яблучно-грушевий" and
+  // nowhere else. It stays type_product JUICE: that is what it is, and the
+  // app needs no new code to understand it.
+  const isSet = (out.own_sets_role ?? current?.own_sets_role) === 'kit';
+  if (isSet) {
+    // Unconditional, because a set has no flavour whichever field was sent.
+    for (const f of SUBTYPE_FIELDS) out[f] = null;
+  } else if ('type_product' in out || SUBTYPE_FIELDS.some((f) => f in body)) {
     const sub = kind ? SUBTYPE[kind] : undefined;
     for (const f of SUBTYPE_FIELDS) out[f] = null;
     if (sub) {
