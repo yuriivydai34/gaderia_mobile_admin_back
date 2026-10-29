@@ -23,17 +23,22 @@ export type PackRule = {
   // The caption on a bottle's card, {N} is the box size ("По 6 шт. у
   // комплекті — можна обрати різні смаки"). Absent: the app writes its own.
   hint?: string;
+  // Shown above the checkout button in the cart while the box is already
+  // full at least once; {FULL} is how many. Absent: the app writes its own.
+  // Empty string: never show it, even when the box is full.
+  fullPrefix?: string;
   enabled: boolean;
 };
 
 export const OWN_SETS_TESTERS_MAX = 50;
 export const PACK_RULES_MAX = 20;
 
-// What the website uses now (inc/pack-rules.php, gdr_pack_rules()).
+// What the website uses now (inc/pack-rules.php, gdr_pack_rules()). Must
+// match app-server's own copy of these defaults (lib/components/own_sets).
 export const DEFAULT_PACK_RULES: PackRule[] = [
-  { measurement: 0.33, n: 12, label: 'Сік 0,3 л', msg: 'Мінімальне замовлення 12 шт. Додайте ще {N} (можна інший смак).', hint: 'По 12 шт. у комплекті — можна обрати різні смаки', enabled: true },
-  { measurement: 1, n: 6, label: 'Сік 1 л', msg: 'Мінімальне замовлення 6 шт. Додайте ще {N} (можна інший смак).', hint: 'По 6 шт. у комплекті — можна обрати різні смаки', enabled: true },
-  { measurement: 3, n: 2, label: 'Сік 3 л', msg: 'Мінімальне замовлення 2 шт. Додайте ще {N} (можна інший смак).', hint: 'По 2 шт. у комплекті — можна обрати різні смаки', enabled: true },
+  { measurement: 0.33, n: 12, label: 'Сік 0,3 л', msg: 'Мінімальне замовлення 12 шт. Додайте ще {N} (можна інший смак).', hint: 'По 12 шт. у комплекті — можна обрати різні смаки', fullPrefix: 'Повних комплектів: {FULL}. ', enabled: true },
+  { measurement: 1, n: 6, label: 'Сік 1 л', msg: 'Мінімальне замовлення 6 шт. Додайте ще {N} (можна інший смак).', hint: 'По 6 шт. у комплекті — можна обрати різні смаки', fullPrefix: 'Повних комплектів: {FULL}. ', enabled: true },
+  { measurement: 3, n: 2, label: 'Сік 3 л', msg: 'Мінімальне замовлення 2 шт. Додайте ще {N} (можна інший смак).', hint: 'По 2 шт. у комплекті — можна обрати різні смаки', fullPrefix: 'Повних комплектів: {FULL}. ', enabled: true },
   // Owner's decision 24.10.2026: no box rule for vinegar — it is sold in
   // whatever quantity, same as before this feature (the "2 пляшки" pack
   // listing is unrelated — a separate, ordinary catalog product). Removed
@@ -88,7 +93,13 @@ export function normalizePackRules(value: unknown): PackRule[] {
     if (typeof b.enabled !== 'boolean') throw new BadRequestException(`${r}: «увімкнено» має бути true або false`);
     const hint = b.hint === undefined || b.hint === null ? undefined : text(b.hint);
     if (hint !== undefined && hint.length > 100) throw new BadRequestException(`${r}: підпис на картці до 100 символів`);
-    return hint === undefined ? { measurement, n, label, msg, enabled: b.enabled } : { measurement, n, label, msg, hint, enabled: b.enabled };
+    const fullPrefix = b.fullPrefix === undefined || b.fullPrefix === null ? undefined : text(b.fullPrefix);
+    if (fullPrefix !== undefined && fullPrefix.length > 100) throw new BadRequestException(`${r}: текст над кнопкою оформлення до 100 символів`);
+    return {
+      measurement, n, label, msg, enabled: b.enabled,
+      ...(hint !== undefined ? { hint } : {}),
+      ...(fullPrefix !== undefined ? { fullPrefix } : {}),
+    };
   });
 }
 

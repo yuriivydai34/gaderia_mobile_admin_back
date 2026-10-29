@@ -73,3 +73,24 @@ describe('the caption on a bottle card (hint)', () => {
     expect(DEFAULT_PACK_RULES[0].label).toBe('Сік 0,3 л');
   });
 });
+
+describe('the "complete boxes" prefix in the cart (fullPrefix)', () => {
+  const rule = (over: Record<string, unknown> = {}) => ({ measurement: 1, n: 6, label: 'Сік 1 л', msg: '{N}', enabled: true, ...over });
+
+  it('is optional: a rule without one stays without one', () => {
+    expect('fullPrefix' in normalizePackRules([rule()])[0]).toBe(false);
+  });
+
+  it('is kept, trimmed, and may be empty (never shown, even when the box is full)', () => {
+    expect(normalizePackRules([rule({ fullPrefix: '  Повних {FULL}  ' })])[0].fullPrefix).toBe('Повних {FULL}');
+    expect(normalizePackRules([rule({ fullPrefix: '' })])[0].fullPrefix).toBe('');
+  });
+
+  it('is capped at 100 characters', () => {
+    expect(() => normalizePackRules([rule({ fullPrefix: 'x'.repeat(101) })])).toThrow(BadRequestException);
+  });
+
+  it('the defaults carry the website wording', () => {
+    expect(DEFAULT_PACK_RULES[1].fullPrefix).toBe('Повних комплектів: {FULL}. ');
+  });
+});
