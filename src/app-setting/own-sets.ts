@@ -20,6 +20,9 @@ export type PackRule = {
   label: string;
   // Shown when the box is short; {N} is how many bottles are missing.
   msg: string;
+  // The caption on a bottle's card, {N} is the box size ("По 6 шт. у
+  // комплекті — можна обрати різні смаки"). Absent: the app writes its own.
+  hint?: string;
   enabled: boolean;
 };
 
@@ -28,13 +31,14 @@ export const PACK_RULES_MAX = 20;
 
 // What the website uses now (inc/pack-rules.php, gdr_pack_rules()).
 export const DEFAULT_PACK_RULES: PackRule[] = [
-  { measurement: 0.33, n: 12, label: 'Сік 0,33 л', msg: 'Сік 0,33 л їде ящиками по 12 пляшок. Додайте ще {N} — смаки можна різні.', enabled: true },
-  { measurement: 1, n: 6, label: 'Сік 1 л', msg: 'Сік 1 л їде ящиками по 6 пляшок. Додайте ще {N} — смаки можна різні.', enabled: true },
-  { measurement: 3, n: 2, label: 'Сік 3 л', msg: 'Сік 3 л їде упаковками по 2. Додайте ще {N} — смаки можна різні.', enabled: true },
+  { measurement: 0.33, n: 12, label: 'Сік 0,3 л', msg: 'Мінімальне замовлення 12 шт. Додайте ще {N} (можна інший смак).', hint: 'По 12 шт. у комплекті — можна обрати різні смаки', enabled: true },
+  { measurement: 1, n: 6, label: 'Сік 1 л', msg: 'Мінімальне замовлення 6 шт. Додайте ще {N} (можна інший смак).', hint: 'По 6 шт. у комплекті — можна обрати різні смаки', enabled: true },
+  { measurement: 3, n: 2, label: 'Сік 3 л', msg: 'Мінімальне замовлення 2 шт. Додайте ще {N} (можна інший смак).', hint: 'По 2 шт. у комплекті — можна обрати різні смаки', enabled: true },
   // Owner's decision 24.10.2026: no box rule for vinegar — it is sold in
   // whatever quantity, same as before this feature (the "2 пляшки" pack
   // listing is unrelated — a separate, ordinary catalog product). Removed
   // rather than disabled, so the panel's rules list does not show a dead row.
+  // Texts as on the website since 29.10.2026: "комплект", "шт.", "Сік 0,3 л".
 ];
 
 function text(value: unknown): string {
@@ -82,7 +86,9 @@ export function normalizePackRules(value: unknown): PackRule[] {
     const msg = text(b.msg);
     if (!msg || msg.length > 200) throw new BadRequestException(`${r}: повідомлення від 1 до 200 символів`);
     if (typeof b.enabled !== 'boolean') throw new BadRequestException(`${r}: «увімкнено» має бути true або false`);
-    return { measurement, n, label, msg, enabled: b.enabled };
+    const hint = b.hint === undefined || b.hint === null ? undefined : text(b.hint);
+    if (hint !== undefined && hint.length > 100) throw new BadRequestException(`${r}: підпис на картці до 100 символів`);
+    return hint === undefined ? { measurement, n, label, msg, enabled: b.enabled } : { measurement, n, label, msg, hint, enabled: b.enabled };
   });
 }
 

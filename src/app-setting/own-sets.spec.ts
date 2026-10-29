@@ -51,3 +51,25 @@ describe('juices by the bottle', () => {
     expect(readStoredValue('own_sets_testers', [129])).toEqual([129]);
   });
 });
+
+describe('the caption on a bottle card (hint)', () => {
+  const rule = (over: Record<string, unknown> = {}) => ({ measurement: 1, n: 6, label: 'Сік 1 л', msg: '{N}', enabled: true, ...over });
+
+  it('is optional: a rule without one stays without one', () => {
+    expect('hint' in normalizePackRules([rule()])[0]).toBe(false);
+  });
+
+  it('is kept, trimmed, and may be empty (no caption on the card)', () => {
+    expect(normalizePackRules([rule({ hint: '  По {N} шт.  ' })])[0].hint).toBe('По {N} шт.');
+    expect(normalizePackRules([rule({ hint: '' })])[0].hint).toBe('');
+  });
+
+  it('is capped at 100 characters', () => {
+    expect(() => normalizePackRules([rule({ hint: 'x'.repeat(101) })])).toThrow(BadRequestException);
+  });
+
+  it('the defaults carry the website texts', () => {
+    expect(DEFAULT_PACK_RULES[1]).toMatchObject({ label: 'Сік 1 л', hint: 'По 6 шт. у комплекті — можна обрати різні смаки' });
+    expect(DEFAULT_PACK_RULES[0].label).toBe('Сік 0,3 л');
+  });
+});
