@@ -15,8 +15,9 @@ export class CatalogController {
     @Query('limit') limit = '10',
     @Query('sortBy') sortBy = 'id',
     @Query('sortOrder') sortOrder: 'ASC' | 'DESC' = 'ASC',
+    @Query('search') search?: string,
   ) {
-    return this.catalogService.findAll(Number(page), Number(limit), sortBy, sortOrder);
+    return this.catalogService.findAll(Number(page), Number(limit), sortBy, sortOrder, search);
   }
 
   @Get(':id')

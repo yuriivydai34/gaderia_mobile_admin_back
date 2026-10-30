@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Brackets, Repository } from 'typeorm';
 import { Catalog } from './catalog.entity';
 import { CatalogInput, normalizeCatalogInput } from './catalog-input';
 import { DEFAULT_BADGE_COLOR, isBadgedPicture, storeBadgedPicture } from './picture-badge';
@@ -12,16 +12,37 @@ export class CatalogService {
     private readonly catalogRepository: Repository<Catalog>,
   ) {}
 
-  async findAll(page: number, limit: number, sortBy = 'id', sortOrder: 'ASC' | 'DESC' = 'ASC'): Promise<{ data: Catalog[]; total: number; page: number; limit: number }> {
+  async findAll(
+    page: number,
+    limit: number,
+    sortBy = 'id',
+    sortOrder: 'ASC' | 'DESC' = 'ASC',
+    search?: string,
+  ): Promise<{ data: Catalog[]; total: number; page: number; limit: number }> {
     const columns = this.catalogRepository.metadata.columns.map((c) => c.propertyName);
-    const [data, total] = await this.catalogRepository.findAndCount({
-      skip: (page - 1) * limit,
-      take: limit,
+    const qb = this.catalogRepository
+      .createQueryBuilder('catalog')
       // An unknown column or direction used to reach TypeORM and come back as a 500.
-      order: {
-        [columns.includes(sortBy) ? sortBy : 'id']: String(sortOrder).toUpperCase() === 'DESC' ? 'DESC' : 'ASC',
-      },
-    });
+      .orderBy(
+        `catalog.${columns.includes(sortBy) ? sortBy : 'id'}`,
+        String(sortOrder).toUpperCase() === 'DESC' ? 'DESC' : 'ASC',
+      )
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const term = search?.trim();
+    if (term) {
+      const pattern = `%${term}%`;
+      qb.andWhere(
+        new Brackets((b) => {
+          b.where('catalog.header ILIKE :pattern', { pattern })
+            .orWhere('catalog.article ILIKE :pattern', { pattern })
+            .orWhere('CAST(catalog.id AS TEXT) = :term', { term });
+        }),
+      );
+    }
+
+    const [data, total] = await qb.getManyAndCount();
     return { data, total, page, limit };
   }
 
