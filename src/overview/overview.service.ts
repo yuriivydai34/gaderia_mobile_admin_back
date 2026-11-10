@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Payment } from '../payment/payment.entity';
+import { kyivMonthRange, kyivThisMonth } from '../payment/kyiv-day';
 import { Account } from '../account/account.entity';
 
 // Paid, whether or not it has since shipped: the two statuses that moved
@@ -28,6 +29,11 @@ export type Overview = {
   cancelledOrders: number;
   revenue: number;
   customers: number;
+  // Paid orders and revenue in the current calendar month (Kyiv), so the
+  // all-time total above doesn't have to stand in for "how is this month
+  // going" - see TODO.md.
+  ordersThisMonth: number;
+  revenueThisMonth: number;
   recentOrders: RecentOrder[];
   topProducts: TopProduct[];
 };
@@ -36,9 +42,11 @@ export type Overview = {
  * What the "Огляд" page used to show as made-up numbers. Everything here
  * reads real rows: orders and revenue from `payment`, customers from
  * `account`, top products from each paid order's own item list
- * (`catalog_list_id`, the same JSON app-server wrote at checkout). There is
- * no month-over-month change here — nothing keeps last month's numbers to
- * compare against, so the page does not claim one.
+ * (`catalog_list_id`, the same JSON app-server wrote at checkout). The
+ * "this month" figures are the current calendar month in Kyiv (kyiv-day.ts),
+ * not a rolling 30 days. There is still no comparison to last month —
+ * nothing keeps last month's numbers once it ends, so the page does not
+ * claim one.
  */
 @Injectable()
 export class OverviewService {
@@ -50,7 +58,18 @@ export class OverviewService {
   ) {}
 
   async get(): Promise<Overview> {
-    const [totalOrders, cancelledOrders, customers, revenueRow, recentOrders, topProducts] = await Promise.all([
+    const { year, month } = kyivThisMonth();
+    const { start, end } = kyivMonthRange(year, month);
+
+    const [
+      totalOrders,
+      cancelledOrders,
+      customers,
+      revenueRow,
+      thisMonthRow,
+      recentOrders,
+      topProducts,
+    ] = await Promise.all([
       this.paymentRepository.count(),
       this.paymentRepository.count({ where: { status: 'CANCELED' } }),
       this.accountRepository.count(),
@@ -59,6 +78,13 @@ export class OverviewService {
         .select('COALESCE(SUM(p.amount), 0)', 'sum')
         .where('p.status IN (:...statuses)', { statuses: PAID_STATUSES })
         .getRawOne<{ sum: string }>(),
+      this.paymentRepository
+        .createQueryBuilder('p')
+        .select('COALESCE(SUM(p.amount), 0)', 'sum')
+        .addSelect('COUNT(*)', 'count')
+        .where('p.status IN (:...statuses)', { statuses: PAID_STATUSES })
+        .andWhere('p.createdAt BETWEEN :start AND :end', { start, end })
+        .getRawOne<{ sum: string; count: string }>(),
       this.paymentRepository.find({
         order: { updatedAt: 'DESC' },
         take: 5,
@@ -71,6 +97,8 @@ export class OverviewService {
       cancelledOrders,
       revenue: Number(revenueRow?.sum ?? 0),
       customers,
+      ordersThisMonth: Number(thisMonthRow?.count ?? 0),
+      revenueThisMonth: Number(thisMonthRow?.sum ?? 0),
       recentOrders: recentOrders.map((p) => ({
         id: p.id,
         order_id: p.order_id,
@@ -90,8 +118,9 @@ export class OverviewService {
   // query builder cannot join a set-returning function (jsonb_array_elements)
   // without quoting it as a table name, so this is a plain parameterised query.
   private async topProducts(): Promise<TopProduct[]> {
-    const rows: { name: string; orders: string; revenue: string }[] = await this.paymentRepository.query(
-      `SELECT
+    const rows: { name: string; orders: string; revenue: string }[] =
+      await this.paymentRepository.query(
+        `SELECT
          item->'model_catalog'->>'header' AS name,
          COUNT(*) AS orders,
          SUM(
@@ -108,8 +137,8 @@ export class OverviewService {
        GROUP BY name
        ORDER BY revenue DESC
        LIMIT 5`,
-      [PAID_STATUSES],
-    );
+        [PAID_STATUSES],
+      );
 
     return rows.map((r) => ({
       name: r.name,
