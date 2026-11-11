@@ -14,7 +14,8 @@ function fail(message: string): never {
 function blank(v: unknown): boolean {
   if (v === undefined || v === null) return true;
   if (typeof v === 'object') return false;
-  return String(v).trim() === '';
+  // Excluded object/null/undefined above; a JSON body holds only these left.
+  return String(v as string | number | boolean).trim() === '';
 }
 
 function text(v: unknown, field: string, max: number): string {

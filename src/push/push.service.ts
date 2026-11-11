@@ -3,7 +3,10 @@ import {
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { PushInput } from './push-input';
+import { PushLog } from './push-log.entity';
 
 export type PushResult =
   | { ok: true }
@@ -25,6 +28,11 @@ export type PushResult =
 export class PushService {
   private readonly logger = new Logger(PushService.name);
 
+  constructor(
+    @InjectRepository(PushLog)
+    private readonly pushLogRepository: Repository<PushLog>,
+  ) {}
+
   private get config(): { url: string; token: string } {
     const url = process.env.APP_SERVER_URL;
     const token = process.env.APP_SERVER_PUSH_TOKEN;
@@ -36,7 +44,8 @@ export class PushService {
     return { url: url.replace(/\/+$/, ''), token };
   }
 
-  async send(input: PushInput): Promise<PushResult> {
+  /** `sentBy` is logged only - the e-mail of whoever is signed in here. */
+  async send(input: PushInput, sentBy: string | null): Promise<PushResult> {
     const { url, token } = this.config;
 
     let res: Response;
@@ -59,20 +68,43 @@ export class PushService {
       return { ok: false, status: 502, message: 'app-server недоступний' };
     }
 
-    if (res.ok) return { ok: true };
-
     // app-server's own reply shape (response_structure.js): {error} is an
-    // object of field -> message, the same way this API's own validation
-    // errors read.
+    // object of field -> message on failure, {data} on success.
     const body = (await res.json().catch(() => ({}))) as {
       error?: Record<string, unknown> | string;
       message?: string;
+      data?: { message_id?: string };
     };
+
+    if (res.ok) {
+      // Kept for the "Останні надіслані" list on the panel's own page -
+      // app-server never reads this table, see migrations/025_push_log.sql.
+      await this.pushLogRepository.save(
+        this.pushLogRepository.create({
+          title: input.title,
+          body: input.body,
+          image: input.image,
+          account_id: input.account_id,
+          message_id: body.data?.message_id ?? null,
+          sent_by: sentBy,
+        }),
+      );
+      return { ok: true };
+    }
+
     const message =
       body.error && typeof body.error === 'object'
         ? Object.values(body.error).map(String).join('; ')
         : (body.error ?? body.message ?? `app-server відповів ${res.status}`);
     this.logger.warn(`push: app-server ${res.status}: ${message}`);
     return { ok: false, status: res.status, message };
+  }
+
+  /** Newest first, for the panel's own history list - not app-server's. */
+  async recent(limit = 20): Promise<PushLog[]> {
+    return this.pushLogRepository.find({
+      order: { createdAt: 'DESC' },
+      take: limit,
+    });
   }
 }

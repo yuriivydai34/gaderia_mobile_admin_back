@@ -34,6 +34,7 @@ import { BonusLedger } from './bonus/bonus-ledger.entity';
 import { BonusModule } from './bonus/bonus.module';
 import { OverviewModule } from './overview/overview.module';
 import { PushModule } from './push/push.module';
+import { PushLog } from './push/push-log.entity';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { PushModule } from './push/push.module';
         AppSetting,
         BonusLedger,
         PromoBanner,
+        PushLog,
       ],
       synchronize: false,
     }),
