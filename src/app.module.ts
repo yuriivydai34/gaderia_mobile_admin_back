@@ -33,6 +33,7 @@ import { SystemModule } from './system/system.module';
 import { BonusLedger } from './bonus/bonus-ledger.entity';
 import { BonusModule } from './bonus/bonus.module';
 import { OverviewModule } from './overview/overview.module';
+import { PushModule } from './push/push.module';
 
 @Module({
   imports: [
@@ -45,7 +46,22 @@ import { OverviewModule } from './overview/overview.module';
       username: process.env.DB_USER ?? 'postgres',
       password: process.env.DB_PASSWORD ?? 'postgres',
       database: process.env.DB_NAME ?? 'your_database_name',
-      entities: [Account, AccountDocument, Payment, Catalog, Shift, Customer, IntegrationState, Favorite, OrderReview, PromoCode, PromoRedemption, AppSetting, BonusLedger, PromoBanner],
+      entities: [
+        Account,
+        AccountDocument,
+        Payment,
+        Catalog,
+        Shift,
+        Customer,
+        IntegrationState,
+        Favorite,
+        OrderReview,
+        PromoCode,
+        PromoRedemption,
+        AppSetting,
+        BonusLedger,
+        PromoBanner,
+      ],
       synchronize: false,
     }),
     AuthModule,
@@ -63,6 +79,7 @@ import { OverviewModule } from './overview/overview.module';
     SystemModule,
     BonusModule,
     OverviewModule,
+    PushModule,
   ],
   controllers: [AppController],
   providers: [AppService],
