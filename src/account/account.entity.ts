@@ -11,14 +11,24 @@ export class Account {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: 'name_company', type: 'varchar', nullable: true, default: null })
+  @Column({
+    name: 'name_company',
+    type: 'varchar',
+    nullable: true,
+    default: null,
+  })
   name_company: string | null;
 
   // Text, not int. A company code is an identifier, never a quantity: a
   // ten-digit ЄДРПОУ does not fit int4 (2983111979 broke registration in the
   // app server outright), and an integer column silently eats the leading
   // zeros an eight-digit code often has.
-  @Column({ name: 'code_company', type: 'varchar', nullable: true, default: null })
+  @Column({
+    name: 'code_company',
+    type: 'varchar',
+    nullable: true,
+    default: null,
+  })
   code_company: string | null;
 
   @Column({ type: 'varchar', nullable: true, default: null })
@@ -45,16 +55,40 @@ export class Account {
   @Column({ type: 'varchar', nullable: true, default: null })
   role: string | null;
 
-  @Column({ name: 'email_confirmation_code', type: 'int', nullable: true, default: null })
+  /**
+   * Lets one token be revoked (migrations/026, added for app-server's own
+   * JWT fix) without rotating JWT_SECRET for every admin: a token carries
+   * this value at the moment it was issued, JwtStrategy rejects one whose
+   * value no longer matches. set-password.mjs bumps it on a password change.
+   */
+  @Column({ name: 'token_version', type: 'int', default: 0 })
+  token_version: number;
+
+  @Column({
+    name: 'email_confirmation_code',
+    type: 'int',
+    nullable: true,
+    default: null,
+  })
   email_confirmation_code: number | null;
 
-  @Column({ name: 'is_email_confirmation', type: 'boolean', nullable: true, default: false })
+  @Column({
+    name: 'is_email_confirmation',
+    type: 'boolean',
+    nullable: true,
+    default: false,
+  })
   is_email_confirmation: boolean;
 
   @Column({ name: 'name_bank', type: 'varchar', nullable: true, default: null })
   name_bank: string | null;
 
-  @Column({ name: 'number_bank', type: 'varchar', nullable: true, default: null })
+  @Column({
+    name: 'number_bank',
+    type: 'varchar',
+    nullable: true,
+    default: null,
+  })
   number_bank: string | null;
 
   @Column({ type: 'varchar', nullable: true, default: null })
@@ -66,20 +100,39 @@ export class Account {
   @Column({ type: 'varchar', nullable: true, default: null })
   address: string | null;
 
-  @Column({ name: 'type_account_subject', type: 'varchar', nullable: true, default: null })
+  @Column({
+    name: 'type_account_subject',
+    type: 'varchar',
+    nullable: true,
+    default: null,
+  })
   type_account_subject: string | null;
-
 
   // Queued for deletion by the client in the app; app-server erases the
   // personal data some hours later and clears this. NULL — not queued.
-  @Column({ name: 'deletion_requested_at', type: 'timestamptz', nullable: true, default: null })
+  @Column({
+    name: 'deletion_requested_at',
+    type: 'timestamptz',
+    nullable: true,
+    default: null,
+  })
   deletion_requested_at: Date | null;
 
   // The app version this account last used, as 1.3.3, and when app-server
   // saw it (migrations/016). Null until a signed-in request carries it.
-  @Column({ name: 'app_version', type: 'varchar', nullable: true, default: null })
+  @Column({
+    name: 'app_version',
+    type: 'varchar',
+    nullable: true,
+    default: null,
+  })
   app_version: string | null;
 
-  @Column({ name: 'app_version_seen_at', type: 'timestamptz', nullable: true, default: null })
+  @Column({
+    name: 'app_version_seen_at',
+    type: 'timestamptz',
+    nullable: true,
+    default: null,
+  })
   app_version_seen_at: Date | null;
 }

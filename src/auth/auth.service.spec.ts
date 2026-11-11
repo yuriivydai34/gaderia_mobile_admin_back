@@ -28,42 +28,82 @@ describe('AuthService', () => {
     process.env.PASSWORD_PEPPER = pepper;
   });
 
-  const withHash = (hash: string | null) =>
-    ({ id: 1, email: 'a@b.c', role: 'ADMIN', password: hash }) as Account;
+  const withHash = (hash: string | null, token_version = 0) =>
+    ({
+      id: 1,
+      email: 'a@b.c',
+      role: 'ADMIN',
+      password: hash,
+      token_version,
+    }) as Account;
 
   it('accepts a password app-server hashed', async () => {
     const hash = bcrypt.hashSync('secret' + APP_SERVER_SUFFIX, 4);
     accounts.findByEmail.mockResolvedValue(withHash(hash));
 
-    await expect(service.login('a@b.c', 'secret')).resolves.toEqual({ access_token: 'token' });
+    await expect(service.login('a@b.c', 'secret')).resolves.toEqual({
+      access_token: 'token',
+    });
+  });
+
+  it("signs the account's current token_version into the token", async () => {
+    const sign = jest.fn(() => 'token');
+    service = new AuthService(
+      accounts as unknown as AccountService,
+      { sign } as unknown as JwtService,
+    );
+    accounts.findByEmail.mockResolvedValue(
+      withHash(bcrypt.hashSync('secret' + APP_SERVER_SUFFIX, 4), 3),
+    );
+
+    await service.login('a@b.c', 'secret');
+
+    expect(sign).toHaveBeenCalledWith({
+      sub: 1,
+      email: 'a@b.c',
+      role: 'ADMIN',
+      tokenVersion: 3,
+    });
   });
 
   it('hashes new passwords so app-server accepts them', async () => {
     accounts.findByEmail.mockResolvedValue(null);
-    accounts.create.mockImplementation((data) => Promise.resolve({ id: 2, ...data } as Account));
+    accounts.create.mockImplementation((data) =>
+      Promise.resolve({ id: 2, ...data } as Account),
+    );
 
     await service.register('Ivan', ' Ivan@X.com ', 'secret');
 
     const { password, email } = accounts.create.mock.calls[0][0];
-    expect(bcrypt.compareSync('secret' + APP_SERVER_SUFFIX, password as string)).toBe(true);
+    expect(
+      bcrypt.compareSync('secret' + APP_SERVER_SUFFIX, password as string),
+    ).toBe(true);
     expect(email).toBe('ivan@x.com');
   });
 
   it.each([
-    ['wrong password', withHash(bcrypt.hashSync('secret' + APP_SERVER_SUFFIX, 4)), 'nope'],
+    [
+      'wrong password',
+      withHash(bcrypt.hashSync('secret' + APP_SERVER_SUFFIX, 4)),
+      'nope',
+    ],
     ['no such account', null, 'secret'],
     // Buyers imported without a password must not be let in by an empty one.
     ['account without a password', withHash(null), ''],
   ])('%s -> 401', async (_, account, password) => {
     accounts.findByEmail.mockResolvedValue(account);
 
-    await expect(service.login('a@b.c', password)).rejects.toThrow(UnauthorizedException);
+    await expect(service.login('a@b.c', password)).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('a second registration of the same address -> 409, even when it wins the race to the check', async () => {
     accounts.findByEmail.mockResolvedValue(null);
     accounts.create.mockRejectedValue({ driverError: { code: '23505' } });
 
-    await expect(service.register('Ivan', 'a@b.c', 'secret')).rejects.toThrow(ConflictException);
+    await expect(service.register('Ivan', 'a@b.c', 'secret')).rejects.toThrow(
+      ConflictException,
+    );
   });
 });

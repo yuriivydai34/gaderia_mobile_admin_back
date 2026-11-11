@@ -112,7 +112,13 @@ if (found.length > 1) {
 
 const account = found[0];
 const hash = await bcrypt.hash(password + process.env.PASSWORD_PEPPER, 10);
-await client.query('UPDATE account SET password = $1 WHERE id = $2', [hash, account.id]);
+// token_version bump: every token issued before this point stops working
+// immediately (JwtStrategy, account.token_version) - changing a password is
+// supposed to end old sessions, not just stop a leaked one from logging in.
+await client.query(
+  'UPDATE account SET password = $1, token_version = COALESCE(token_version, 0) + 1 WHERE id = $2',
+  [hash, account.id],
+);
 
 // Prove the stored hash actually validates, rather than trusting that it does.
 const { rows: [stored] } = await client.query('SELECT password FROM account WHERE id = $1', [account.id]);

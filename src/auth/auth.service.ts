@@ -1,7 +1,12 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { AccountService, isDuplicateEmail } from '../account/account.service';
+import { Account } from '../account/account.entity';
 
 @Injectable()
 export class AuthService {
@@ -26,7 +31,11 @@ export class AuthService {
 
     let account: Awaited<ReturnType<AccountService['create']>>;
     try {
-      account = await this.accountService.create({ full_name, email: address, password: hashed });
+      account = await this.accountService.create({
+        full_name,
+        email: address,
+        password: hashed,
+      });
     } catch (error) {
       // The check above can be overtaken by a second registration of the same
       // address; the unique index is what actually decides.
@@ -35,16 +44,35 @@ export class AuthService {
       }
       throw error;
     }
-    const access_token = this.jwtService.sign({ sub: account.id, email: account.email, role: account.role });
+    const access_token = this.sign(account);
     return { access_token };
   }
 
   async login(email: string, password: string) {
     const account = await this.accountService.findByEmail(email);
-    if (!account || !account.password || !(await bcrypt.compare(this.pepperPassword(password), account.password))) {
+    if (
+      !account ||
+      !account.password ||
+      !(await bcrypt.compare(this.pepperPassword(password), account.password))
+    ) {
       throw new UnauthorizedException('Invalid credentials');
     }
-    const access_token = this.jwtService.sign({ sub: account.id, email: account.email, role: account.role });
+    const access_token = this.sign(account);
     return { access_token };
+  }
+
+  /**
+   * tokenVersion lets JwtStrategy reject one token without rotating
+   * JWT_SECRET for everyone - see account.entity.ts's token_version.
+   */
+  private sign(
+    account: Pick<Account, 'id' | 'email' | 'role' | 'token_version'>,
+  ): string {
+    return this.jwtService.sign({
+      sub: account.id,
+      email: account.email,
+      role: account.role,
+      tokenVersion: account.token_version,
+    });
   }
 }
