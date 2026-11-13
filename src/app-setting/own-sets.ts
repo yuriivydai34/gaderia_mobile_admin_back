@@ -45,10 +45,14 @@ export const PACK_RULES_MAX = 20;
 // match app-server's own copy of these defaults (lib/components/own_sets).
 export const DEFAULT_PACK_RULES: PackRule[] = [
   // Box sizes confirmed 05.11.2026 against the site's pack cards and real
-  // waybills (№21112: 0,33 л; №21202: 1 л; №21109/№21105: 3 л). 0,33 л is 7 kg
-  // for strawberry, 8 kg otherwise - the default takes the general figure.
+  // waybills (№21112, labelled "0,33 л"; №21202: 1 л; №21109/№21105: 3 л).
+  // 0,33 л is 7 kg for strawberry, 8 kg otherwise - the default takes the
+  // general figure. `measurement` itself must stay 0.3, not that waybill
+  // label: it has to match catalog.measurement of the real bottle (exactly
+  // 0.3) to ever apply - 0.33 silently matched nothing, so no card showed a
+  // box-size hint and checkout never enforced whole boxes for these bottles.
   {
-    measurement: 0.33,
+    measurement: 0.3,
     n: 12,
     label: 'Сік 0,3 л',
     msg: 'Мінімальне замовлення 12 шт. Додайте ще {N} (можна інший смак).',

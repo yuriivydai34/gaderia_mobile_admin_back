@@ -195,7 +195,7 @@ describe("a full box's shipping size (box_weight/length/width/height)", () => {
 
   it('all three defaults are confirmed against pack cards and real waybills (05.11.2026)', () => {
     expect(DEFAULT_PACK_RULES[0]).toMatchObject({
-      measurement: 0.33,
+      measurement: 0.3,
       box_weight: 8,
       box_length: 27,
       box_width: 20,
